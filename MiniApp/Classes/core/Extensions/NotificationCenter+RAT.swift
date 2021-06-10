@@ -1,13 +1,15 @@
 internal extension NotificationCenter {
-    func sendAnalytics(event: MiniAppRATEvent, type: MiniAppRATEventType? = nil, parameters customData: (String, String)...) {
-        sendAnalytics(event: event, type: type, parameters: customData)
-    }
-
-    func sendAnalytics(event: MiniAppRATEvent, type: MiniAppRATEventType? = nil, parameters customData: [(String, String)]? = nil, analyticsConfig: [MAAnalyticsConfig] = []) {
+    func sendAnalytics(event: MiniAppRATEvent, type: MiniAppRATEventType? = nil, analyticsConfig: [MAAnalyticsConfig] = [MiniAppAnalytics.defaultAccount], parameters customData: [(String, String)]? = nil) {
         var parameters = [String: Codable]()
         var topLevel = [String: String]()
 
-        for configItem in analyticsConfig {
+        var configs = analyticsConfig
+
+        if !configs.contains(MiniAppAnalytics.defaultAccount) {
+            configs.append(MiniAppAnalytics.defaultAccount)
+        }
+
+        for configItem in configs {
             topLevel["acc"] = configItem.acc
             topLevel["aid"] = configItem.aid
             topLevel["actype"] = event.name()

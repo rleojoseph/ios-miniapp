@@ -49,6 +49,7 @@ public class MiniAppAnalyticsLoader: NSObject {
 
 public class MiniAppAnalytics {
     public static let notificationName = Notification.Name("com.rakuten.esd.sdk.events.custom")
+    public static let defaultAccount = MAAnalyticsConfig(acc: "1553", aid: "1")
 
     internal class func getAnalyticsInfo(miniAppId: String? = nil, miniAppVersion: String? = nil, projectId: String? = nil) -> [(String, String)] {
         var result = [(String, String)]()
@@ -69,7 +70,7 @@ public class MiniAppAnalytics {
 
     internal class func getAnalyticsConfigList(analyticsConfig: [MAAnalyticsConfig]? = []) -> [MAAnalyticsConfig] {
         var analyticsConfigList: [MAAnalyticsConfig] = []
-        analyticsConfigList.append(MAAnalyticsConfig(acc: "1553", aid: "1"))
+        analyticsConfigList.append(Self.defaultAccount)
         guard let configList = analyticsConfig else {
             return analyticsConfigList
         }
@@ -77,9 +78,9 @@ public class MiniAppAnalytics {
         return analyticsConfigList
     }
 
-    internal class func sendAnalytics(event: MiniAppRATEvent, miniAppId: String? = nil, miniAppVersion: String? = nil, projectId: String? = nil, customParameters: (String, String)..., analyticsConfig: [MAAnalyticsConfig]? = []) {
+    internal class func sendAnalytics(event: MiniAppRATEvent, miniAppId: String? = nil, miniAppVersion: String? = nil, projectId: String? = nil, analyticsConfig: [MAAnalyticsConfig]? = [defaultAccount], customParameters: (String, String)...) {
         let params = getAnalyticsInfo(miniAppId: miniAppId, miniAppVersion: miniAppVersion, projectId: projectId) + customParameters
         MiniAppLogger.d("posting \(event.name()) analytic \(event.eType()) event with params:\n\(params)", "📡")
-        NotificationCenter.default.sendAnalytics(event: event, parameters: params, analyticsConfig: getAnalyticsConfigList(analyticsConfig: analyticsConfig))
+        NotificationCenter.default.sendAnalytics(event: event, analyticsConfig: getAnalyticsConfigList(analyticsConfig: analyticsConfig), parameters: params)
     }
 }
