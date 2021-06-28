@@ -7,7 +7,6 @@ public struct MASDKLocale {
         case cancel                                 = "miniapp.sdk.ios.alert.title.cancel"
         case allow                                  = "miniapp.sdk.ios.ui.allow"
         case save                                   = "miniapp.sdk.all.ui.save"
-        case customSettingsFooter                   = "miniapp.sdk.ios.customsettingsfooter"
         case firstLaunchFooter                      = "miniapp.sdk.ios.firstlaunch.footer"
         case serverError                            = "miniapp.sdk.ios.error.message.server"
         case invalidUrl                             = "miniapp.sdk.ios.error.message.invalid_url"
@@ -26,22 +25,52 @@ public struct MASDKLocale {
         case adNotLoadedError                       = "miniapp.sdk.ios.error.message.ad_not_loaded"
         case adLoadingError                         = "miniapp.sdk.ios.error.message.ad_loading"
         case adLoadedError                          = "miniapp.sdk.ios.error.message.ad_loaded"
+        case uiNavButtonClose                       = "miniapp.sdk.ios.ui.nav.button.close"
+        case uiFallbackTitle                        = "miniapp.sdk.ios.ui.fallback.title"
+        case uiFallbackButtonRetry                  = "miniapp.sdk.ios.ui.fallback.button.retry"
     }
 
+    @available(*, deprecated, message: "This method is strongly dependant to the string format parameters and might lead to a crash", renamed:"localize(bundle:_:)")
     public static func localize(bundle path: String? = nil, _ key: String, _ params: CVarArg...) -> String {
-        let localizedString: String
-        if let path = path {
-            localizedString = key.localizedString(path: path)
-        } else {
-            localizedString = key.localizedString()
-        }
+        let localizedString = Self.localize(bundle: path, key)
         if params.count > 0 {
             return String(format: localizedString, arguments: params)
         }
         return localizedString
     }
 
+    /// Method to retrieve a localizable from its key
+    ///
+    /// - Parameters:
+    ///   - path: the optional path to the bundle where the strings file is located
+    ///   - key: the key that defines the localizable in the strings file
+    /// - Returns:
+    public static func localize(bundle path: String? = nil, _ key: String) -> String {
+        let localizedString: String
+        if let path = path {
+            localizedString = key.localizedString(path: path)
+        } else {
+            localizedString = key.localizedString()
+        }
+        return localizedString
+    }
+
+    @available(*, deprecated, message: "This method is strongly dependant to the string format parameters and might lead to a crash", renamed:"localize(bundle:_:)")
     public static func localize(bundle path: String? = nil, _ key: LocalizableKey, _ params: CVarArg...) -> String {
-        localize(bundle: path, key.rawValue, params)
+        if params.count > 0 {
+            return localize(bundle: path, key.rawValue, params.first!)
+        } else {
+            return localize(bundle: path, key.rawValue)
+        }
+    }
+
+    /// Method to retrieve a MiniApp SDK localizable from its key
+    ///
+    /// - Parameters:
+    ///   - path: the optional path to the bundle where the strings file is located
+    ///   - key: a LocalizableKey that defines the localizable in the strings file
+    /// - Returns:
+    public static func localize(bundle path: String? = nil, _ key: LocalizableKey) -> String {
+        localize(bundle: path, key.rawValue)
     }
 }

@@ -2,6 +2,50 @@
 import WebKit
 import Foundation
 
+let jSONManifest = """
+{
+      "reqPermissions": [
+        {
+          "name": "rakuten.miniapp.user.USER_NAME",
+          "reason": "Describe your reason here (optional)."
+        },
+        {
+          "name": "rakuten.miniapp.user.PROFILE_PHOTO",
+          "reason": "Describe your reason here (optional)."
+        }
+      ],
+      "optPermissions": [
+        {
+          "name": "rakuten.miniapp.user.CONTACT_LIST",
+          "reason": "Describe your reason here (optional)."
+        },
+        {
+          "name": "rakuten.miniapp.device.LOCATION",
+          "reason": "Describe your reason here (optional)."
+        }
+      ],
+      "customMetaData": {
+        "exampleKey": "test"
+      },
+      "accessTokenPermissions": [
+      {
+        "audience": "AUDIENCE_TEST",
+        "scopes": ["scope_test"]
+      }
+   ]
+}
+"""
+
+let mockMetaDataString = """
+    {
+        "bundleManifest":
+              \(jSONManifest)
+    }
+"""
+
+let mockRATAcc = "123"
+let mockRATAid = "1"
+
 // swiftlint:disable file_length
 class MockAPIClient: MiniAppClient {
     var data: Data?
@@ -11,19 +55,20 @@ class MockAPIClient: MiniAppClient {
     var request: URLRequest?
     var zipFile: String?
     var headers: [String: String]?
+    var mockSDKConfig: MiniAppSdkConfig?
 
     init(previewMode: Bool? = false) {
         let bundle = MockBundle()
         bundle.mockPreviewMode = previewMode
-        super.init(with:
-                MiniAppSdkConfig(
-                    baseUrl: bundle.mockEndpoint,
-                    rasProjectId: bundle.mockProjectId,
-                    subscriptionKey: bundle.mockSubscriptionKey,
-                    hostAppVersion: bundle.mockHostAppUserAgentInfo,
-                    isPreviewMode: bundle.mockPreviewMode
-                )
+        mockSDKConfig = MiniAppSdkConfig(
+            baseUrl: bundle.mockEndpoint,
+            rasProjectId: bundle.mockProjectId,
+            subscriptionKey: bundle.mockSubscriptionKey,
+            hostAppVersion: bundle.mockHostAppUserAgentInfo,
+            isPreviewMode: bundle.mockPreviewMode,
+            analyticsConfigList: [MAAnalyticsConfig(acc: mockRATAcc, aid: mockRATAid)]
         )
+        super.init(with: mockSDKConfig!)
     }
 
     override func getMiniAppsList(completionHandler: @escaping (Result<ResponseData, Error>) -> Void) {
@@ -348,20 +393,20 @@ class MockMessageInterface: MiniAppMessageDelegate {
     }
 
     func getUserName() -> String? {
-        return mockUserName
+        mockUserName
     }
 
     func getProfilePhoto() -> String? {
-        return mockProfilePhoto
+        mockProfilePhoto
     }
 
-    func getContacts() -> [MAContact]? {
-        return mockContactList
+    func getContacts(completionHandler: @escaping (Result<[MAContact]?, MASDKError>) -> Void) {
+        completionHandler(.success(mockContactList))
     }
 
-    func getAccessToken(miniAppId: String, scopes: MASDKAccessTokenScopes, completionHandler: @escaping (Result<MATokenInfo, MASDKCustomPermissionError>) -> Void) {
+    func getAccessToken(miniAppId: String, scopes: MASDKAccessTokenScopes, completionHandler: @escaping (Result<MATokenInfo, MASDKAccessTokenError>) -> Void) {
         guard let accessToken =  mockAccessToken, !accessToken.isEmpty else {
-            return completionHandler(.failure(.unknownError))
+            return completionHandler(.failure(.error(description: "Unable to return Access Token")))
         }
         return completionHandler(.success(MATokenInfo(accessToken: accessToken, expirationDate: Date(), scopes: scopes)))
     }
@@ -414,47 +459,6 @@ func getMockManifestInfo(miniAppId: String) throws -> MiniAppManifest? {
     let manifestData = jSONManifest.data(using: .utf8)!
     return try JSONDecoder().decode(MiniAppManifest.self, from: manifestData)
 }
-
-let jSONManifest = """
-{
-      "reqPermissions": [
-        {
-          "name": "rakuten.miniapp.user.USER_NAME",
-          "reason": "Describe your reason here (optional)."
-        },
-        {
-          "name": "rakuten.miniapp.user.PROFILE_PHOTO",
-          "reason": "Describe your reason here (optional)."
-        }
-      ],
-      "optPermissions": [
-        {
-          "name": "rakuten.miniapp.user.CONTACT_LIST",
-          "reason": "Describe your reason here (optional)."
-        },
-        {
-          "name": "rakuten.miniapp.device.LOCATION",
-          "reason": "Describe your reason here (optional)."
-        }
-      ],
-      "customMetaData": {
-        "exampleKey": "test"
-      },
-      "accessTokenPermissions": [
-      {
-        "audience": "AUDIENCE_TEST",
-        "scopes": ["scope_test"]
-      }
-   ]
-}
-"""
-
-let mockMetaDataString = """
-    {
-        "bundleManifest":
-              \(jSONManifest)
-    }
-"""
 
 func getDefaultSupportedPermissions() -> [MASDKCustomPermissionModel] {
     var supportedPermissionList = [MASDKCustomPermissionModel]()
@@ -615,7 +619,7 @@ class MockDisplayer: Displayer {
                                  queryParams: String? = nil,
                                  hostAppMessageDelegate: MiniAppMessageDelegate,
                                  adsDisplayer: MiniAppAdDisplayer?,
-                                 initialLoadCallback: @escaping (Bool) -> Void) -> MiniAppDisplayDelegate {
+                                 initialLoadCallback: @escaping (Bool) -> Void, analyticsConfig: [MAAnalyticsConfig]? = []) -> MiniAppDisplayDelegate {
         DispatchQueue.global().asyncAfter(deadline: .now() + .milliseconds(500)) {
             DispatchQueue.main.async {
                 initialLoadCallback(self.mockedInitialLoadCallbackResponse)

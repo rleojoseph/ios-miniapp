@@ -26,8 +26,9 @@ class CustomPermissionsRequestViewController: UIViewController {
         guard let permissionRequest = permissionsRequestList else {
             return
         }
-        customPermissionHandlerObj?(.success(permissionRequest))
-        self.dismiss(animated: true, completion: nil)
+        self.dismiss(animated: true, completion: {
+            self.customPermissionHandlerObj?(.success(permissionRequest))
+        })
     }
 
     @objc func permissionValueChanged(_ sender: UISwitch) {
@@ -50,7 +51,7 @@ class CustomPermissionsRequestViewController: UIViewController {
     }
 
     func addFooterInfo() {
-        self.footerLabel.text = MASDKLocale.localize(.firstLaunchFooter, miniAppTitle)
+        footerLabel.text = String(format: MASDKLocale.localize(.firstLaunchFooter), miniAppTitle)
     }
 }
 

@@ -11,12 +11,15 @@ public protocol MiniAppUserInfoDelegate: class {
     func getProfilePhoto(completionHandler: @escaping (Result<String?, MASDKError>) -> Void)
 
     /// Interface that is used to retrieve the Contact list
+    func getContacts(completionHandler: @escaping (Result<[MAContact]?, MASDKError>) -> Void)
+
+    @available(*, deprecated, renamed:"getContacts(completionHandler:)")
     func getContacts() -> [MAContact]?
 
     /// Interface that is used to retrieve the Token Info
     func getAccessToken(miniAppId: String,
                         scopes: MASDKAccessTokenScopes,
-                        completionHandler: @escaping (Result<MATokenInfo, MASDKCustomPermissionError>) -> Void)
+                        completionHandler: @escaping (Result<MATokenInfo, MASDKAccessTokenError>) -> Void)
 
     /// Old interface that was used to retrieve the Token Info. Use of a MASDKAccessTokenScopes is now mandatory. Will be removed in v4.0+
     @available(*, deprecated, renamed:"getAccessToken(miniAppId:scopes:completionHandler:)")
@@ -33,11 +36,29 @@ public extension MiniAppUserInfoDelegate {
         completionHandler(.failure(.unknownError(domain: MASDKLocale.localize(.hostAppError), code: 1, description: MASDKLocale.localize(.failedToConformToProtocol))))
     }
 
-    func getContacts() -> [MAContact]? {
-        return nil
+    func getContacts(completionHandler: @escaping (Result<[MAContact]?, MASDKError>) -> Void) {
+        completionHandler(.failure(.unknownError(domain: MASDKLocale.localize(.hostAppError), code: 1, description: MASDKLocale.localize(.failedToConformToProtocol))))
     }
 
-    func getAccessToken(miniAppId: String, scopes: MASDKAccessTokenScopes, completionHandler: @escaping (Result<MATokenInfo, MASDKCustomPermissionError>) -> Void) {
+    func getContacts() -> [MAContact]? {
+        let semaphore = DispatchSemaphore(value: 0)
+        var contacts: [MAContact]?
+        getContacts { result in
+            switch result {
+            case .success(let listContacts):
+                contacts = listContacts
+            default:
+                contacts = nil
+            }
+            semaphore.signal()
+        }
+        semaphore.wait()
+        return contacts
+    }
+
+    func getAccessToken(miniAppId: String,
+                        scopes: MASDKAccessTokenScopes,
+                        completionHandler: @escaping (Result<MATokenInfo, MASDKAccessTokenError>) -> Void) {
         completionHandler(.failure(.failedToConformToProtocol))
     }
 
