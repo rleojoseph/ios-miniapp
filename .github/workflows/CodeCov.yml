@@ -10,6 +10,6 @@ jobs:
       - name: Code Coverage
         uses: actions/checkout@v2
       - name: Build and Test
-        run:  xcodebuild test -project MiniApp.xcodeproj -scheme MiniApp-Example -destination 'platform=iOS Simulator,name=iPhone 11,OS=14.4' -enableCodeCoverage YES build test
+        run: xcodebuild -workspace MiniApp.xcworkspace -scheme MiniApp-Example -destination 'platform=iOS Simulator,name=iPhone 11,OS=14.4' -enableCodeCoverage YES build test
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v1.2.1
