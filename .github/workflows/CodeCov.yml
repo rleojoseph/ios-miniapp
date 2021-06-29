@@ -10,7 +10,7 @@ jobs:
       - name: Code Coverage
         uses: actions/checkout@v2
       - name: Build and Test
-          xcodebuild -workspace . -list
+          run: xcodebuild -workspace . -list
           xcodebuild clean build -workspace MiniApp.xcworkspace -scheme MiniApp-Example -configuration Debug CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO | tee logs/xcodebuild-iOS-build-release.log | xcpretty
         # run: xcodebuild -workspace MiniApp.xcworkspace -scheme MiniApp-Example -destination 'platform=iOS Simulator,name=iPhone 11' -enableCodeCoverage YES build test
       - name: Upload coverage to Codecov
