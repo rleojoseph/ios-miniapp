@@ -17,6 +17,6 @@ jobs:
       - name: Show Xcode version
         run: xcodebuild -version
       - name: Build
-        run: xcodebuild -workspace MiniApp.xcworkspace -scheme MiniApp-Example -configuration Debug -sdk  
+        run: xcodebuild -workspace MiniApp.xcworkspace -scheme MiniApp-Example -configuration Debug
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v1.2.1
