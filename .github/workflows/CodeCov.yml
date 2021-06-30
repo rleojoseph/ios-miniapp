@@ -17,6 +17,6 @@ jobs:
       - name: Show Xcode version
         run: xcodebuild -version
       - name: Build
-        run: xcodebuild -workspace ./MiniApp.xcworkspace -scheme MiniApp_Tests -destination platform=iOS Simulator,name=iPhone 11,id=58CA5A75-F7FE-4CEE-A32B-0E4E7FD50F58,OS=14.4 -enableCodeCoverage YES clean build test
+        run: xcodebuild -workspace ./MiniApp.xcworkspace -scheme MiniApp_Tests -destination "platform=iOS Simulator,name=iPhone 11,id=58CA5A75-F7FE-4CEE-A32B-0E4E7FD50F58,OS=14.4" -enableCodeCoverage YES clean build test
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v1.2.1
