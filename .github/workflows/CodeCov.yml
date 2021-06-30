@@ -10,13 +10,18 @@ jobs:
       - name: Code Coverage
         uses: actions/checkout@v2
       
-      - name: Run POD install
-        run: |
-          pod install
-
-      - name: Show Xcode version
-        run: xcodebuild -version
-      - name: Build
-        run: xcodebuild -workspace ./MiniApp.xcworkspace -scheme MiniApp_Tests -destination "platform=iOS Simulator,name=iPhone 11 Pro Max,OS=latest" -enableCodeCoverage YES clean build test
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v1.2.1
+      # - name: Run POD install
+      #   run: |
+      #     pod install
+      - run:
+          name: swift build
+          command: swift build
+      - run:
+          name: swift test
+          command: swift test
+      # - name: Show Xcode version
+      #   run: xcodebuild -version
+      # - name: Build
+      #   run: xcodebuild -workspace ./MiniApp.xcworkspace -scheme MiniApp_Tests -destination "platform=iOS Simulator,name=iPhone 11 Pro Max,OS=latest" -enableCodeCoverage YES clean build test
+      # - name: Upload coverage to Codecov
+      #   uses: codecov/codecov-action@v1.2.1
