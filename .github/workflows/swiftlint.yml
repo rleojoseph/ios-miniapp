@@ -7,7 +7,7 @@ on:
 jobs:
   build:
     runs-on: macos-latest
-    allow-failure: true
+    continue-on-error: false
     steps:
     - name: Repository checkout
       uses: actions/checkout@v2
