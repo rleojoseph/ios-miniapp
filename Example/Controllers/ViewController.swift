@@ -38,7 +38,8 @@ class ViewController: UIViewController {
     var permissionHandlerObj: PermissionCompletionHandler?
     var currentMiniAppTitle: String?
 
-    override func viewDidLoad() {
+
+    override func  viewDidLoad() {
         super.viewDidLoad()
         self.navigationController?.viewControllers = [self]
         self.navigationItem.hidesBackButton = true
