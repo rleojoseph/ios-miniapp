@@ -2,8 +2,47 @@ import MiniApp
 
 extension ViewController: MiniAppNavigationDelegate {
     func miniAppNavigationCanGo(back: Bool, forward: Bool) {
-        let testing = displayController?.topViewController as? DisplayController
-        testing?.refreshNavigationBarButtons(backButtonEnabled: back, forwardButtonEnabled: forward)
+        guard let miniAppDisplayController = UINavigationController.topViewController() as? MiniAppViewController else {
+            guard let miniAppDisplayController = UINavigationController.topViewController() as? DisplayController else {
+                return
+            }
+            return miniAppDisplayController.refreshNavigationBarButtons(backButtonEnabled: back, forwardButtonEnabled: forward)
+        }
+        miniAppDisplayController.refreshNavigationBarButtons(backButtonEnabled: back, forwardButtonEnabled: forward)
+    }
+
+    func miniAppNavigation(shouldOpen url: URL,
+                           with responseHandler: @escaping MiniAppNavigationResponseHandler,
+                           onClose closeHandler: MiniAppNavigationResponseHandler?) {
+        if url.absoluteString.starts(with: "data:") {
+            // currently js sdk is passing no base64 data type
+            let base64String = url.absoluteString.components(separatedBy: ",").last ?? ""
+            guard let base64Data = Data(base64Encoded: base64String, options: .ignoreUnknownCharacters) else { return }
+            var activityItem: Any?
+            if let image = UIImage(data: base64Data) {
+                activityItem = image
+            } else {
+                activityItem = base64Data
+            }
+            guard let wrappedActivityItem = activityItem else { return }
+            let activityViewController = UIActivityViewController(activityItems: [wrappedActivityItem], applicationActivities: nil)
+            presentedViewController?.present(activityViewController, animated: true, completion: nil)
+        } else {
+            if !isDeepLinkURL(url: url) {
+                MiniAppExternalWebViewController.presentModally(url: url,
+                                                                externalLinkResponseHandler: responseHandler,
+                                                                customMiniAppURL: nil,
+                                                                onCloseHandler: closeHandler)
+            }
+        }
+    }
+
+    func isDeepLinkURL(url: URL) -> Bool {
+        if getDeepLinksList().contains(where: url.absoluteString.hasPrefix) {
+            UIApplication.shared.open(url, options: [:], completionHandler: nil)
+            return true
+        }
+        return false
     }
 
     func fetchAppList(inBackground: Bool) {
@@ -104,21 +143,36 @@ extension ViewController: MiniAppNavigationDelegate {
     }
 
     func checkSDKErrorAndDisplay(error: MASDKError) {
-            var errorMessage: String = ""
-            switch error {
-            case .metaDataFailure:
-                guard let miniAppInfo = currentMiniAppInfo else {
-                    errorMessage =  String(format: MASDKLocale.localize("miniapp.sdk.ios.error.message.metadata"), MASDKLocale.localize(.downloadFailed))
-                    return
-                }
-                self.showFirstTimeLaunchScreen(miniAppInfo: miniAppInfo)
-            default:
-                errorMessage = MASDKLocale.localize(.downloadFailed)
+        switch error {
+        case .metaDataFailure:
+            metaDataFailure()
+        case .invalidSignature:
+            self.displayAlert(title: MASDKLocale.localize("miniapp.sdk.ios.error.title"), message: MASDKLocale.localize(.signatureFailed), dismissController: true) { _ in
+                self.fetchAppList(inBackground: true)
             }
-            self.displayAlert(title: MASDKLocale.localize("miniapp.sdk.ios.error.title"), message: errorMessage, dismissController: true) { _ in
+        default:
+            self.displayAlert(title: MASDKLocale.localize("miniapp.sdk.ios.error.title"), message: MASDKLocale.localize(.downloadFailed), dismissController: true) { _ in
                 self.fetchAppList(inBackground: true)
             }
         }
+    }
+
+    // We need to dismiss current Mini App controller to show First time screen.
+    // This is due to the recent change on how we display Miniapp, MiniAppUI.shared().launch()
+    func metaDataFailure() {
+        DispatchQueue.main.async {
+            self.dismiss(animated: true) {
+                guard let miniAppInfo = self.currentMiniAppInfo else {
+                    return self.displayAlert(title: MASDKLocale.localize("miniapp.sdk.ios.error.title"),
+                                             message: String(format: MASDKLocale.localize("miniapp.sdk.ios.error.message.metadata"), MASDKLocale.localize(.downloadFailed)),
+                                             dismissController: true) { _ in
+                        self.fetchAppList(inBackground: true)
+                    }
+                }
+                self.fetchMiniAppMetaData(miniAppInfo: miniAppInfo, config: Config.current())
+            }
+        }
+    }
 }
 
 extension ViewController: MiniAppUIDelegate {

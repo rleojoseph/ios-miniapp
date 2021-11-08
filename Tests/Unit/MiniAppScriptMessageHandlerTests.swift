@@ -23,9 +23,14 @@ class MiniAppScriptMessageHandlerTests: QuickSpec {
                 miniAppId: mockMiniAppInfo.id, miniAppTitle: mockMiniAppTitle
             )
             beforeEach {
+                callbackProtocol.customEvent = nil
+                callbackProtocol.eventMessage = nil
+                callbackProtocol.messageId = nil
+                callbackProtocol.errorMessage = nil
                 deleteStatusPreferences()
                 clearCustomPermissionsFromStorage(miniAppId: mockMiniAppInfo.id)
             }
+
             context("when user controller receive valid action and id") {
                 it("will return unique id") {
                     let mockMessage = MockWKScriptMessage(name: "getUniqueId", body: "{\"action\": \"getUniqueId\", \"param\": { \"permission\": null}, \"id\":\"12345\"}" as AnyObject)
@@ -563,7 +568,7 @@ class MiniAppScriptMessageHandlerTests: QuickSpec {
                       "id" : "1.9034416849400426",
                       "param" : {
                         "messageToContact" : {
-                          "action" : "https://www.example.com\",
+                          "action" : "\(mockHost)\",
                           "caption" : "Sample caption",
                           "image" : "data:image/png;base64,Test==",
                           "text" : "Sample text"
@@ -592,7 +597,7 @@ class MiniAppScriptMessageHandlerTests: QuickSpec {
                       "id" : "1.9034416849400426",
                       "param" : {
                         "messageToContact" : {
-                          "action" : "https://www.example.com\",
+                          "action" : "\(mockHost)\",
                           "caption" : "Sample caption",
                           "image" : "data:image/png;base64,Test==",
                           "text" : "Sample text"
@@ -622,7 +627,7 @@ class MiniAppScriptMessageHandlerTests: QuickSpec {
                         "param" : {
                             "contactId" : "\(mockMiniAppInfo.id)",
                             "messageToContact" : {
-                                "action" : "https://www.example.com/",
+                                "action" : "\(mockHost)/",
                                 "caption" : "Sample caption",
                                 "image" : "data:image/png;base64,Test==",
                                 "text" : "Sample text"
@@ -655,6 +660,7 @@ class MiniAppScriptMessageHandlerTests: QuickSpec {
                             "contactId" : "\(mockMiniAppInfo.id)",
                             "messageToContact" : {
                                 "action" : "https://www.example.com/",
+                                "action" : "\(mockHost)/",
                                 "caption" : "Sample caption",
                                 "image" : "data:image/png;base64,Test==",
                                 "text" : "Sample text"
@@ -678,7 +684,7 @@ class MiniAppScriptMessageHandlerTests: QuickSpec {
                         "id" : "5.1141101534045745",
                         "param" : {
                             "messageToContact" : {
-                                "action" : "https://www.example.com/",
+                                "action" : "\(mockHost)/",
                                 "caption" : "Sample caption",
                                 "image" : "data:image/png;base64,Test==",
                                 "text" : "Sample text"
@@ -711,6 +717,7 @@ class MiniAppScriptMessageHandlerTests: QuickSpec {
                         "param" : {
                             "messageToContact" : {
                                 "action" : "https://www.example.com/",
+                                "action" : "\(mockHost)/",
                                 "caption" : "Sample caption",
                                 "image" : "data:image/png;base64,Test==",
                                 "text" : "Sample text"
@@ -863,6 +870,36 @@ class MiniAppScriptMessageHandlerTests: QuickSpec {
                         let mockMessage = MockWKScriptMessage(name: "", body: command as AnyObject)
                         scriptMessageHandler.userContentController(WKUserContentController(), didReceive: mockMessage)
                         expect(mockCallbackProtocol.response).toEventually(contain("standard"), timeout: .seconds(10))
+                    }
+                }
+                context("when MiniAppScriptMessageHandler receives getHostEnvironmentInfo command") {
+                    it("will return ") {
+                        let mockCallbackProtocol = MockMiniAppCallbackProtocol()
+                        let scriptMessageHandler = MiniAppScriptMessageHandler(
+                            delegate: mockCallbackProtocol,
+                            hostAppMessageDelegate: mockMessageInterface,
+                            adsDisplayer: mockAdsDelegate,
+                            miniAppId: mockMiniAppInfo.id, miniAppTitle: mockMiniAppTitle
+                        )
+                        let command = """
+                        {
+                            "action" : "getHostEnvironmentInfo",
+                            "id" : "5.1141101534045745",
+                            "param" : null
+                        }
+                        """
+                        mockMessageInterface.mockPointsInterface = true
+                        let mockMessage = MockWKScriptMessage(name: "", body: command as AnyObject)
+                        scriptMessageHandler.userContentController(WKUserContentController(), didReceive: mockMessage)
+                        guard let responseData: Data = mockCallbackProtocol.response?.data(using: .utf8) else {
+                            fail("MiniAppScriptMessageHandler - getHostEnvironmentInfo failed")
+                            return
+                        }
+                        let environment = Environment(bundle: Bundle.main)
+                        let environmentInfo = ResponseDecoder.decode(decodeType: MAHostEnvironmentInfo.self, data: responseData)
+                        expect(environmentInfo?.sdkVersion).toEventually(equal(environment.sdkVersion?.description))
+                        expect(environmentInfo?.platformVersion).toEventually(equal(UIDevice.current.systemVersion))
+                        expect(environmentInfo?.hostVersion).toEventually(equal(environment.appVersion))
                     }
                 }
             }

@@ -32,11 +32,21 @@ public class MiniAppViewController: UIViewController {
         didSet { update() }
     }
 
+    public override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        NotificationCenter.default.sendCustomEvent(MiniAppEvent.Event(type: .resume, comment: "MiniApp view did appear"))
+    }
+
+    public override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        NotificationCenter.default.sendCustomEvent(MiniAppEvent.Event(type: .pause, comment: "MiniApp view will disappear"))
+    }
+
     weak var messageDelegate: MiniAppMessageDelegate?
     weak var navDelegate: MiniAppNavigationDelegate?
     weak var navBarDelegate: MiniAppNavigationBarDelegate?
 
-    weak var delegate: MiniAppUIDelegate?
+    weak var miniAppUiDelegate: MiniAppUIDelegate?
 
     // MARK: UI - Navigation
     private lazy var backButton: UIBarButtonItem = {
@@ -128,6 +138,8 @@ public class MiniAppViewController: UIViewController {
             fallbackView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             fallbackView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
         ])
+        backButton.isEnabled = false
+        forwardButton.isEnabled = false
     }
 
     func setupMiniApp() {
@@ -154,10 +166,10 @@ public class MiniAppViewController: UIViewController {
                         view.frame = self.view.bounds
                         self.view.addSubview(view)
                         self.navBarDelegate = miniAppDisplay as? MiniAppNavigationBarDelegate
-                        self.delegate?.miniApp(self, didLoadWith: nil)
+                        self.miniAppUiDelegate?.miniApp(self, didLoadWith: nil)
                         self.state = .success
                     case .failure(let error):
-                        self.delegate?.miniApp(self, didLoadWith: error)
+                        self.miniAppUiDelegate?.miniApp(self, didLoadWith: error)
                         self.state = .error
                     }
                 },
@@ -191,31 +203,27 @@ public class MiniAppViewController: UIViewController {
 
     @objc
     public func backPressed() {
-        if delegate == nil {
-            navBarDelegate?.miniAppNavigationBar(didTriggerAction: .back)
-        } else {
-            delegate?.miniApp(self, shouldExecute: .back)
-        }
+        navBarDelegate?.miniAppNavigationBar(didTriggerAction: .back)
     }
 
     @objc
     public func forwardPressed() {
-        if delegate == nil {
-            navBarDelegate?.miniAppNavigationBar(didTriggerAction: .forward)
-        } else {
-            delegate?.miniApp(self, shouldExecute: .forward)
-        }
+        navBarDelegate?.miniAppNavigationBar(didTriggerAction: .forward)
     }
 
     @objc
     public func closePressed() {
-        if delegate == nil {
+        if miniAppUiDelegate == nil {
             dismiss(animated: true, completion: nil)
         } else {
-            delegate?.onClose()
+            miniAppUiDelegate?.onClose()
         }
     }
 
+    public func refreshNavigationBarButtons(backButtonEnabled: Bool, forwardButtonEnabled: Bool) {
+        backButton.isEnabled = backButtonEnabled
+        forwardButton.isEnabled = forwardButtonEnabled
+    }
 }
 
 // MARK: - MiniAppNavigationDelegate
@@ -223,11 +231,7 @@ extension MiniAppViewController: MiniAppNavigationDelegate {
 
     /// will be used soon when knowing the cases to react to
     public func miniAppNavigation(shouldOpen url: URL, with responseHandler: @escaping MiniAppNavigationResponseHandler) {
-//        MiniAppExternalWebViewController.presentModally(url: url, externalLinkResponseHandler: { url in
-//            if url.absoluteString == "miniapp://close" {
-//                // dismiss
-//            }
-//        })
+        // Implement navigation handling when necessary (todo raises a swiftlint error)
     }
 
 }

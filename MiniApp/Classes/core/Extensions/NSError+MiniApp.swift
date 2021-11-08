@@ -34,6 +34,13 @@ extension NSError {
         )
     }
 
+    class func invalidSignature() -> NSError {
+        return NSError(
+                domain: MiniAppSDKErrorDomain,
+                code: MiniAppSDKErrorCode.invalidSignature.rawValue
+        )
+    }
+
     class func invalidResponseData() -> NSError {
         return NSError(
                 domain: MiniAppSDKErrorDomain,
@@ -92,6 +99,13 @@ extension NSError {
                 code: code,
                 message: message)
     }
+
+    func isDeviceOfflineError() -> Bool {
+        if self.domain == MASDKErrorDomain, let maSDKError = self as? MASDKError {
+            return maSDKError.isDeviceOfflineDownloadError()
+        }
+        return offlineErrorCodeList.contains(self.code)
+    }
 }
 // swiftlint:disable identifier_name
 var MiniAppSDKErrorDomain = "MiniAppSDKErrorDomain"
@@ -108,5 +122,6 @@ enum MiniAppSDKErrorCode: Int {
          adNotDisplayed,
          miniAppNotFound,
          metaDataFailure,
-         failedToConformToProtocol
+         failedToConformToProtocol,
+         invalidSignature
 }
