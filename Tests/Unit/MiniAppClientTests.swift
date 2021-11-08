@@ -2,8 +2,6 @@ import Quick
 import Nimble
 @testable import MiniApp
 
-// swiftlint:disable function_body_length
-// swiftlint:disable cyclomatic_complexity
 class MiniAppClientTests: QuickSpec {
     class MockSession: SessionProtocol {
         func startDownloadTask(downloadUrl: URL) { }
