@@ -3,6 +3,9 @@ ignore:
    - "Tests"
    - "Example"
    - "MiniApp/Classes/ui"
+   - "MiniApp/Classes/core/Display/MiniAppExternalWebViewController.swift"
+   - "MiniApp/Classes/core/Extensions/RealMiniAppView+WKUIDelegate.swift"
+   - "MiniApp/Classes/admob/AdMobDisplayer.swift"
 
 coverage:
   status:

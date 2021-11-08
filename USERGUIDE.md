@@ -16,9 +16,11 @@ All the MiniApp files downloaded by the MiniApp iOS library are cached locally
 
 ## Requirements
 
-This module supports **iOS 13.0 and above**. It has been tested on iOS 13.0 and above.
+This module supports **iOS 14.0 and above**. It has been tested on iOS 14.0 and above.
 
 It is written in Swift 5.0 and can be used in compatible Xcode versions.
+
+*Note:* This module is currently set to `deployment_target = '13.0'`, however support for iOS 13.0 has been deprecated and could be removed in a later release.
 
 ## Getting started
 
@@ -35,10 +37,30 @@ Mini App SDK is available through [CocoaPods](https://cocoapods.org). To install
 pod 'MiniApp'
 ```
 
-If you need to support display of Google ads triggered from your Mini App, you need to add the following subspec instead:
+The SDK can provide you some useful UI elements to help you displaying Mini Apps in your host app thanks to this subspec:
+
+```ruby
+pod 'MiniApp/UI'
+```
+
+If you need to support display of Google ads (up to version 8) triggered from your Mini App, you need to add the following subspec instead:
 
 ```ruby
 pod 'MiniApp/Admob'
+```
+
+or if you need version 8 or above
+
+```ruby
+pod 'MiniApp/Admob8'
+```
+
+If you want to check the Mini App zip file integrity to prevent file corruption during download, adding `MiniApp/Signature` subspec will automatically enable it. 
+
+By default if the verification fails, it will trigger an [analytic event](#analytics-events) but won't prevent the Mini App to load. [There is a runtime configuration](#runtime-conf) to avoid a corrupted Mini App to be opened.
+You can also provide a new default behavior by using a `RMARequireMiniAppSignatureVerification` boolean parameter in the application plist file (see the configuration matrix below to know more about the `RMARequireMiniAppSignatureVerification` parameter)
+```ruby
+pod 'MiniApp/Signature'
 ```
 
 ### Configuration
@@ -50,8 +72,9 @@ In your project configuration .plist you should add below Key/Value :
 | RASProjectId     | String  | `Set your MiniApp host application project identifier`                  |NO       |`none`   |
 | RASProjectSubscriptionKey    | String  | `Set your MiniApp subscription key`                             |NO       |`none`   |
 | RMAAPIEndpoint               | String  | `Provide your own Base URL for API requests`                    |NO       |`none`   |
+| RMASSLKeyHash               | Dictionary  | `This is the certificate keys hashes used for SSL pinning. The dictionary contains 2 keys: [main] with the main pin, and [backup] for the backup pin` .                    |NO       |`none`   |
 | RMAHostAppUserAgentInfo      | String  | `Host app name and version info that is appended in User agent. The value specified in the plist is retrieved only at the build time.` |YES      |`none`   |
-
+| RMARequireMiniAppSignatureVerification     | Bool  | `This setting allows you to make the Mini App zip file signature validation mandatory. It is set to false by default, which means if a signature is not valid the mini app will still be launched` |YES      |`false`   |
 <a id="setting-admob"></a>Additionally, if you support Google ads with `MiniApp/Admob` subspec, you need to configure Google ads framework as advised into this [documentation](https://developers.google.com/admob/ios/quick-start)
 
 If you don't want to use project settings, you have to pass this information one by one to the `Config.userDefaults` using a `Config.Key` as key:
@@ -74,6 +97,7 @@ Config.userDefaults?.set("MY_CUSTOM_ID", forKey: Config.Key.subscriptionKey.rawV
     * [Retrieve User Profile details](#retrieve-user-profile-details)
     * [Send message to contacts](#send-message-to-contacts)
     * [Retrieve points](#retrieve-points)
+    * [File Download](#file-download)
 * [Load the Mini App list](#load-miniapp-list)
 * [Get a MiniAppInfo](#get-mini-appinfo)
 * [Mini App meta-data](#mini-meta-data)
@@ -90,6 +114,7 @@ Config.userDefaults?.set("MY_CUSTOM_ID", forKey: Config.Key.subscriptionKey.rawV
     * [Catching analytics events](#analytics-events)
     * [Passing Query parameters while creating Mini App](#query-param-mini-app)
     * [Permissions required from the Host app](#permissions-from-host-app)
+    * [MiniApp events](#miniapp-events)
 
 <a id="create-mini-app"></a>
 
@@ -248,7 +273,7 @@ extension ViewController: MiniAppMessageDelegate {
 Mini App SDK gives you the possibility to display ads triggered by your Mini App from your host app.
 There are 2 ways to achieve this: 
 - by implementing [MiniAppAdDisplayDelegate](https://rakutentech.github.io/ios-miniapp/Protocols/MiniAppAdDisplayDelegate.html) by yourself 
-- if you rely on Google ads to display your ads you can simply implement `pod MiniApp/Admob` into your pod dependencies (see [settings section](#setting-admob)).
+- if you rely on Google ads to display your ads you can simply implement `pod MiniApp/Admob` (Admob 7.+) or `pod MiniApp/Admob8` (Admob 8.+) into your pod dependencies (see [settings section](#setting-admob)).
 ###### Google ads displayer
 
 When you chose to implement Google Ads support for your Mini Apps (see [configuration section](#setting-admob)), you must provide an [`AdMobDisplayer`](https://rakutentech.github.io/ios-miniapp/Classes/AdMobDisplayer.html) as adsDelegate parameter when creating your Mini App display:
@@ -476,6 +501,14 @@ extension ViewController: MiniAppMessageDelegate {
     }
 }
 ```
+
+<a id="file-download"></a>
+
+###### File Download
+
+Support to download files of base64 urls.  
+It's necessary to allow the `File Download` custom permission to make file downloads available.
+
 <a id="load-miniapp-list"></a>
 
 ### Load the `MiniApp` list:
@@ -607,7 +640,7 @@ How to get downloaded `Mini App meta-data`
 ---
 In Host App, we can get the downloaded manifest information as following:
 
-```kotlin
+```swift
   let downloadedManifest = MiniApp.shared().getDownloadedManifest(miniAppId:)
 ```
 
@@ -626,7 +659,7 @@ Gets the list of downloaded Mini apps info and associated custom permissions sta
  MiniApp.shared().listDownloadedWithCustomPermissions()
 ```
 
-<a id="navigation"></a>
+<a id="advanced-features"></a>
 
 ### Advanced Features
 ---
@@ -643,12 +676,20 @@ Every call to the API can be done with default parameters retrieved from the pro
 
 ```swift
 class Config: NSObject {
-    class func getCurrent() -> MiniAppSdkConfig {
-        return MiniAppSdkConfig(baseUrl: "https://your.custom.url"
-                                rasAppId: "your_RAS_App_id",
-                                subscriptionKey: "your_subscription_key",
-                                hostAppVersion: "your_custom_version",
-                                isTestMode: true")
+    class func current() -> MiniAppSdkConfig {
+        MiniAppSdkConfig(
+            baseUrl: "https://your.custom.url",
+            rasProjectId: "your_RAS_Project_id",
+            subscriptionKey: "your_subscription_key",
+            hostAppVersion: "your_custom_version",
+            isPreviewMode: true,
+            analyticsConfigList: [MAAnalyticsConfig(acc: "477", aid: "998")],
+            requireMiniAppSignatureVerification: true,
+            sslKeyHash: MiniAppConfigSSLKeyHash(
+                pin: "AABBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=",
+                backup: "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB="
+            )
+        )
     }
 }
 ```
@@ -865,6 +906,18 @@ Mini App SDK requires the host app to include the following set of device permis
 | [NSLocationAlwaysAndWhenInUseUsageDescription](https://developer.apple.com/documentation/bundleresources/information_property_list/nslocationalwaysandwheninuseusagedescription) |  Location  | Mini app to track/get the current location of the user |
 | [NSCameraUsageDescription](https://developer.apple.com/documentation/bundleresources/information_property_list/nscamerausagedescription)                                         |   Camera   | Camera permission required by Mini app to take pictures                              |
 | [NSMicrophoneUsageDescription](https://developer.apple.com/documentation/bundleresources/information_property_list/nsmicrophoneusagedescription)                                 | Microphone | Microphone permission required by Mini app to record a video.                             |
+
+<a id="miniapp-events"></a>
+
+### MiniApp events
+
+Mini App SDK allows MiniApps to react to several events triggered by host app. These include
+
+| Event | Reason |
+|-------|--------|
+| `pause` |  MiniApp view controller will disappear, MiniApp will open an external web view, host application will resign to be active |
+| `resume` | MiniApp view controller did appear, user closed a web view launched by MiniApp, host application did become active|
+| `externalWebViewClosed` | user closed a web view launched by MiniApp |
 
 <a id="faqs-and-troubleshooting"></a>
 

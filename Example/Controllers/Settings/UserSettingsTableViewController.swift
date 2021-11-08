@@ -7,6 +7,7 @@ class UserSettingsTableViewController: UITableViewController, UIImagePickerContr
     @IBOutlet weak var editPhotoButton: UIButton!
     @IBOutlet weak var displayNameTextField: UITextField!
     @IBOutlet weak var modifyProfileSettingsButton: UIBarButtonItem!
+    @IBOutlet weak var deletePhotoButton: UIButton!
     private var saveTitleText = "Save"
     private var editTitleText = "Edit"
 
@@ -24,7 +25,12 @@ class UserSettingsTableViewController: UITableViewController, UIImagePickerContr
 
     func setProfileImage(image: UIImage?) {
         guard let profileImage = image else {
+            let imageConfig = UIImage.SymbolConfiguration(font: UIFont.systemFont(ofSize: 12, weight: .semibold))
+            editPhotoButton.setImage(UIImage(systemName: "plus", withConfiguration: imageConfig), for: .normal)
             editPhotoButton.setTitle("Add Photo", for: .normal)
+
+            deletePhotoButton.setImage(UIImage(systemName: "trash", withConfiguration: imageConfig), for: .normal)
+            deletePhotoButton.setTitle("Remove Photo", for: .normal)
             return
         }
         editPhotoButton.setTitle(editTitleText, for: .normal)
@@ -58,6 +64,8 @@ class UserSettingsTableViewController: UITableViewController, UIImagePickerContr
         displayNameTextField.isEnabled = !displayNameTextField.isEnabled
         editPhotoButton.isEnabled = !editPhotoButton.isEnabled
         editPhotoButton.isHidden  = !editPhotoButton.isHidden
+        deletePhotoButton.isEnabled = !deletePhotoButton.isEnabled
+        deletePhotoButton.isHidden  = !deletePhotoButton.isHidden
         self.displayNameTextField.becomeFirstResponder()
     }
 
@@ -65,7 +73,7 @@ class UserSettingsTableViewController: UITableViewController, UIImagePickerContr
         picker.dismiss(animated: true)
 
         guard let image = info[.editedImage] as? UIImage else {
-            print("User cancelled the operation")
+            log("User cancelled the operation")
             return
         }
         setProfileImage(image: image)
@@ -82,6 +90,10 @@ class UserSettingsTableViewController: UITableViewController, UIImagePickerContr
         }
         self.displayNameTextField.text = userProfile.displayName
         return userProfile.profileImageURI?.convertBase64ToImage()
+    }
+
+    @IBAction func deletePhotoPressed(_ sender: Any) {
+        self.imageView.image = UIImage(named: "Rakuten")
     }
 }
 

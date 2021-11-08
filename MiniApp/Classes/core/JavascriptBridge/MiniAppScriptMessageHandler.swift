@@ -5,6 +5,7 @@ import CoreLocation
 protocol MiniAppCallbackDelegate: AnyObject {
     func didReceiveScriptMessageResponse(messageId: String, response: String)
     func didReceiveScriptMessageError(messageId: String, errorMessage: String)
+    func didReceiveEvent(_ event: MiniAppEvent, message: String)
 }
 
 // swiftlint:disable file_length
@@ -33,6 +34,7 @@ internal class MiniAppScriptMessageHandler: NSObject, WKScriptMessageHandler {
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         if let messageBody = message.body as? String {
             MiniAppLogger.d(messageBody, "♨️️")
+            if message.name == Constants.JavaScript.logHandler { return }
             let bodyData: Data = messageBody.data(using: .utf8)!
             let responseJson = ResponseDecoder.decode(decodeType: MiniAppJavaScriptMessageInfo.self, data: bodyData)
             handleBridgeMessage(responseJson: responseJson)
@@ -84,6 +86,8 @@ internal class MiniAppScriptMessageHandler: NSObject, WKScriptMessageHandler {
             sendMessageToMultipleContacts(with: callbackId, parameters: requestParam)
         case .getPoints:
             fetchPoints(with: callbackId)
+        case .getHostEnvironmentInfo:
+            getHostEnvironmentInfo(with: callbackId)
         }
     }
 
@@ -160,12 +164,20 @@ internal class MiniAppScriptMessageHandler: NSObject, WKScriptMessageHandler {
     }
 
     private func updateLocation(callbackId: String) {
-        locationManager?.updateLocation {[weak self] result in
-            switch result {
-            case .success(let location):
-                self?.getCurrentPosition(callbackId: callbackId, location: location)
-            case .failure(let error): self?.executeJavaScriptCallback(responseStatus: .onError, messageId: callbackId, response: error.localizedDescription)
+        if isPermissionAllowedAlready(customPermissionType: .deviceLocation) {
+            locationManager?.updateLocation {[weak self] result in
+                switch result {
+                case .success(let location):
+                    self?.getCurrentPosition(callbackId: callbackId, location: location)
+                case .failure(let error): self?.executeJavaScriptCallback(responseStatus: .onError,
+                                                                          messageId: callbackId,
+                                                                          response: prepareMAJSGeolocationError(error: error))
+                }
             }
+        } else {
+            executeJavaScriptCallback(responseStatus: .onError,
+                                      messageId: callbackId,
+                                      response: prepareMAJSGeolocationError(error: .userDenied))
         }
     }
 
@@ -318,6 +330,10 @@ internal class MiniAppScriptMessageHandler: NSObject, WKScriptMessageHandler {
         case .onError:
             delegate?.didReceiveScriptMessageError(messageId: messageId, errorMessage: response)
         }
+    }
+
+    func execCustomEventsCallback(with event: MiniAppEvent, message: String) {
+        delegate?.didReceiveEvent(event, message: message)
     }
 
     func shareContent(requestParam: RequestParameters?, callbackId: String) {
@@ -483,6 +499,29 @@ internal class MiniAppScriptMessageHandler: NSObject, WKScriptMessageHandler {
         }
     }
 
+    func getHostEnvironmentInfo(with callbackId: String) {
+        hostAppMessageDelegate?.getHostEnvironmentInfo(completionHandler: { (result) in
+            switch result {
+            case .success(let response):
+                guard let encodedResult = ResponseEncoder.encode(data: response) else {
+                    self.executeJavaScriptCallback(
+                        responseStatus: .onError,
+                        messageId: callbackId,
+                        response: prepareMAJavascriptError(MiniAppJavaScriptError.internalError)
+                    )
+                    return
+                }
+                self.executeJavaScriptCallback(
+                    responseStatus: .onSuccess,
+                    messageId: callbackId,
+                    response: encodedResult
+                )
+            case .failure(let error):
+                self.handleMASDKErrorWithJson(error: error, callbackId: callbackId)
+            }
+        })
+    }
+
     private func sendScopeError(callbackId: String, type: MASDKAccessTokenError) {
         executeJavaScriptCallback(responseStatus: .onError, messageId: callbackId, response: prepareMAJavascriptError(type))
     }
@@ -494,11 +533,27 @@ internal class MiniAppScriptMessageHandler: NSObject, WKScriptMessageHandler {
         }
         self.executeJavaScriptCallback(responseStatus: .onError, messageId: callbackId, response: getMiniAppErrorMessage(MiniAppErrorType.unknownError))
     }
+
+    func handleMASDKErrorWithJson(error: MASDKError, callbackId: String) {
+        if !error.localizedDescription.isEmpty {
+            self.executeJavaScriptCallback(
+                responseStatus: .onError,
+                messageId: callbackId,
+                response: error.localizedDescription
+            )
+            return
+        }
+        self.executeJavaScriptCallback(
+            responseStatus: .onError,
+            messageId: callbackId,
+            response: prepareMAJavascriptError(MiniAppErrorType.unknownError)
+        )
+    }
 }
 
 class LocationManager: NSObject {
     let manager: CLLocationManager
-    var locationListener: ((Result<CLLocation?, Error>) -> Void)?
+    var locationListener: ((Result<CLLocation?, MAJSNaviGeolocationError>) -> Void)?
 
     init(enableHighAccuracy: Bool) {
         manager = CLLocationManager()
@@ -507,12 +562,12 @@ class LocationManager: NSObject {
         manager.delegate = self
     }
 
-    func updateLocation(result: @escaping (Result<CLLocation?, Error>) -> Void) {
+    func updateLocation(result: @escaping (Result<CLLocation?, MAJSNaviGeolocationError>) -> Void) {
         if CLLocationManager.authorizationStatus() == .authorizedAlways || CLLocationManager.authorizationStatus() == .authorizedWhenInUse {
             self.locationListener = result
             manager.startUpdatingLocation()
         } else {
-            result(.failure(NSError.genericError(message: "application does not have sufficient geolocation permissions")))
+            result(.failure(.devicePermissionDenied))
         }
     }
 }

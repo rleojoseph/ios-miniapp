@@ -15,11 +15,19 @@ class MAFirstLaunchController: UIViewController {
 
     weak var launchScreenDelegate: MALaunchScreenDelegate?
     var miniAppInfo: MiniAppInfo?
-    var permissionsCollections: [MASDKCustomPermissionModel]?
-    var requiredPermissions: [MASDKCustomPermissionModel] = []
-    var optionalPermissions: [MASDKCustomPermissionModel] = []
-    var customMetaData: [String: String] = [:]
+    var miniAppManifest: MiniAppManifest? {
+        didSet {
+            requiredPermissions = miniAppManifest?.requiredPermissions ?? []
+            optionalPermissions = miniAppManifest?.optionalPermissions ?? []
+            customMetaData = miniAppManifest?.customMetaData ?? [:]
+        }
+    }
+    private var permissionsCollections: [MASDKCustomPermissionModel]?
+    private var requiredPermissions: [MASDKCustomPermissionModel] = []
+    private var optionalPermissions: [MASDKCustomPermissionModel] = []
+    private var customMetaData: [String: String] = [:]
     var isManifestUpdated: Bool = false
+    var showScopes: Bool = true
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -34,32 +42,35 @@ class MAFirstLaunchController: UIViewController {
 
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
-        guard let footerView = self.tableView.tableFooterView else {
+        guard let footerView = tableView.tableFooterView else {
             return
         }
 
-        let width = self.tableView.bounds.size.width
+        let width = tableView.bounds.size.width
         let size = footerView.systemLayoutSizeFitting(CGSize(width: width, height: UIView.layoutFittingCompressedSize.height))
 
         footerView.frame.size.height = size.height + buttonsContainer.frame.height
-        self.tableView.tableFooterView = footerView
+        tableView.tableFooterView = footerView
     }
 
     func setupUI() {
         miniAppMetaInfoContainer.roundCorners(radius: 10)
         acceptButton.roundedCornerButton()
-        closeButton.addBorderAndColor(color: #colorLiteral(red: 0.7472071648, green: 0, blue: 0, alpha: 1), width: 1, cornerRadius: 20, clipsToBounds: true)
-        self.miniAppName.text = self.miniAppInfo?.displayName
-        self.miniAppVersion.text = "Version: " + (self.miniAppInfo?.version.versionTag)!
-        self.miniAppImageView.loadImage(self.miniAppInfo!.icon, placeholder: "image_placeholder", cache: nil)
-        self.metaDataLabel.text = "Custom MetaData: " + customMetaData.dictToString
+        closeButton.roundedCornerButton(color: tintColor)
+        miniAppName.text = miniAppInfo?.displayName
+        miniAppVersion.text = "Version: " + (miniAppInfo?.version.versionTag)!
+        miniAppImageView.loadImage(miniAppInfo!.icon, placeholder: "image_placeholder", cache: nil)
+        metaDataLabel.text = "Custom MetaData: " + customMetaData.JSONString
     }
 
     @IBAction func acceptButtonPressed(_ sender: UIButton) {
-        MiniApp.shared().setCustomPermissions(forMiniApp: miniAppInfo?.id ?? "", permissionList: permissionsCollections ?? [])
-        _ = saveMiniAppLaunchInfo(isMiniAppLaunched: true, forKey: miniAppInfo!.id)
-        launchScreenDelegate?.didUserResponded(agreed: true, miniAppInfo: miniAppInfo)
-        self.dismiss(animated: true, completion: nil)
+        if let miniAppId = miniAppInfo?.id {
+            MiniApp.shared().setCustomPermissions(forMiniApp: miniAppId, permissionList: permissionsCollections ?? [])
+            launchScreenDelegate?.didUserResponded(agreed: true, miniAppInfo: miniAppInfo)
+            dismiss(animated: true, completion: nil)
+        } else {
+            displayAlert(title: MASDKLocale.localize("miniapp.sdk.ios.error.title"), message: MASDKLocale.localize("miniapp.sdk.ios.error.message.miniapp"))
+        }
     }
 
     @IBAction func closeButtonPressed(_ sender: UIButton) {
@@ -71,11 +82,36 @@ class MAFirstLaunchController: UIViewController {
 // MARK: - UITableViewControllerDelegate
 extension MAFirstLaunchController: UITableViewDelegate, UITableViewDataSource {
 
+    func numberOfSections(in tableView: UITableView) -> Int {
+        return 2
+    }
+
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return permissionsCollections?.count ?? 0
+        if section == 0 {
+            return permissionsCollections?.count ?? 0
+        }
+        return showScopes ? 1 : 0
     }
 
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        if
+            showScopes,
+            indexPath.section == 1,
+            let cell = tableView.dequeueReusableCell(withIdentifier: "FirstLaunchScopesCell", for: indexPath) as? FirstLaunchScopesCell
+        {
+                cell.scopesTitleLabel.text = "Requested Scopes"
+                if let manifest = miniAppManifest {
+                    guard let permissions = manifest.accessTokenPermissions
+                    else {
+                        cell.scopesDescriptionLabel.text = "No requested scopes found"
+                        return cell
+                    }
+                    cell.scopesDescriptionLabel.text = permissions.filter({ $0.audience == "rae" }).first?.scopes.joined(separator: ", ")
+                } else {
+                    cell.scopesDescriptionLabel.text = "Manifest is not available"
+                }
+                return cell
+        }
         if let cell = tableView.dequeueReusableCell(
             withIdentifier: "FirstLaunchCustomPermissionCell", for: indexPath) as? FirstLaunchCustomPermissionCell {
             let permissionModel: MASDKCustomPermissionModel?
@@ -83,7 +119,7 @@ extension MAFirstLaunchController: UITableViewDelegate, UITableViewDataSource {
                 permissionModel = requiredPermissions[indexPath.row]
                 cell.permissionTitle?.attributedText = NSMutableAttributedString()
                     .normalText(permissionModel?.permissionName.title ?? "")
-                    .highlightRedColor(" (Required)")
+                    .highlight(" (Required)", color: tintColor)
                 cell.permissionDescription?.text = permissionModel?.permissionDescription
                 cell.toggle.isHidden = true
             } else {
@@ -114,7 +150,7 @@ extension MAFirstLaunchController: UITableViewDelegate, UITableViewDataSource {
     }
 }
 
-protocol MALaunchScreenDelegate: class {
+protocol MALaunchScreenDelegate: AnyObject {
     func didUserResponded(agreed: Bool, miniAppInfo: MiniAppInfo?)
 }
 
@@ -132,31 +168,12 @@ class FirstLaunchCustomPermissionCell: UITableViewCell {
     }
 }
 
-extension NSMutableAttributedString {
-    func highlightRedColor(_ value: String) -> NSMutableAttributedString {
-        let attributes: [NSAttributedString.Key: Any] = [
-                .foregroundColor: #colorLiteral(red: 0.7472071648, green: 0, blue: 0, alpha: 1)
-        ]
-        self.append(NSAttributedString(string: value, attributes: attributes))
-        return self
-    }
+class FirstLaunchScopesCell: UITableViewCell {
 
-    func normalText(_ value: String) -> NSMutableAttributedString {
-        self.append(NSAttributedString(string: value, attributes: nil))
-        return self
-    }
-}
+    @IBOutlet weak var scopesTitleLabel: UILabel!
+    @IBOutlet weak var scopesDescriptionLabel: UILabel!
 
-extension Dictionary {
-    var dictToString: String {
-        guard let jsonData = try? JSONSerialization.data(withJSONObject: self, options: .prettyPrinted),
-              let output = String(data: jsonData, encoding: .utf8) else {
-            var output: String = ""
-            for (key, value) in self {
-                output +=  "\"\(key)\" : \"\(value)\","
-            }
-            return "{"+String(output.dropLast())+"}"
-        }
-        return output
+    override func prepareForReuse() {
+        super.prepareForReuse()
     }
 }

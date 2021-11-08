@@ -23,9 +23,14 @@ class MiniAppScriptMessageHandlerTests: QuickSpec {
                 miniAppId: mockMiniAppInfo.id, miniAppTitle: mockMiniAppTitle
             )
             beforeEach {
+                callbackProtocol.customEvent = nil
+                callbackProtocol.eventMessage = nil
+                callbackProtocol.messageId = nil
+                callbackProtocol.errorMessage = nil
                 deleteStatusPreferences()
                 clearCustomPermissionsFromStorage(miniAppId: mockMiniAppInfo.id)
             }
+
             context("when user controller receive valid action and id") {
                 it("will return unique id") {
                     let mockMessage = MockWKScriptMessage(name: "getUniqueId", body: "{\"action\": \"getUniqueId\", \"param\": { \"permission\": null}, \"id\":\"12345\"}" as AnyObject)
@@ -556,14 +561,14 @@ class MiniAppScriptMessageHandlerTests: QuickSpec {
                         adsDisplayer: mockAdsDelegate,
                         miniAppId: mockMiniAppInfo.id, miniAppTitle: mockMiniAppTitle
                     )
-                    mockMessageInterface.messageContentAllowed = false
+                    mockMessageInterface.messageContentAllowed = true
                     let command = """
                     {
                       "action" : "sendMessageToContact",
                       "id" : "1.9034416849400426",
                       "param" : {
                         "messageToContact" : {
-                          "action" : "https://www.example.com\",
+                          "action" : "\(mockHost)\",
                           "caption" : "Sample caption",
                           "image" : "data:image/png;base64,Test==",
                           "text" : "Sample text"
@@ -576,8 +581,69 @@ class MiniAppScriptMessageHandlerTests: QuickSpec {
                     expect(mockCallbackProtocol.response).toEventually(contain("SUCCESS"), timeout: .seconds(5))
                 }
             }
+            context("when MiniAppScriptMessageHandler receives sendMessageToContact command but Host app couldn't send the message") {
+                it("will return error") {
+                    let mockCallbackProtocol = MockMiniAppCallbackProtocol()
+                    let scriptMessageHandler = MiniAppScriptMessageHandler(
+                        delegate: mockCallbackProtocol,
+                        hostAppMessageDelegate: mockMessageInterface,
+                        adsDisplayer: mockAdsDelegate,
+                        miniAppId: mockMiniAppInfo.id, miniAppTitle: mockMiniAppTitle
+                    )
+                    mockMessageInterface.messageContentAllowed = false
+                    let command = """
+                    {
+                      "action" : "sendMessageToContact",
+                      "id" : "1.9034416849400426",
+                      "param" : {
+                        "messageToContact" : {
+                          "action" : "\(mockHost)\",
+                          "caption" : "Sample caption",
+                          "image" : "data:image/png;base64,Test==",
+                          "text" : "Sample text"
+                        }
+                      }
+                    }
+                    """
+                    let mockMessage = MockWKScriptMessage(name: "", body: command as AnyObject)
+                    scriptMessageHandler.userContentController(WKUserContentController(), didReceive: mockMessage)
+                    expect(mockCallbackProtocol.errorMessage).toEventually(contain(MASDKError.invalidContactId.errorDescription ?? ""), timeout: .seconds(5))
+                }
+            }
             context("when MiniAppScriptMessageHandler receives sendMessageToContactId command") {
                 it("will return contact Id") {
+                    let mockCallbackProtocol = MockMiniAppCallbackProtocol()
+                    let scriptMessageHandler = MiniAppScriptMessageHandler(
+                        delegate: mockCallbackProtocol,
+                        hostAppMessageDelegate: mockMessageInterface,
+                        adsDisplayer: mockAdsDelegate,
+                        miniAppId: mockMiniAppInfo.id, miniAppTitle: mockMiniAppTitle
+                    )
+                    mockMessageInterface.messageContentAllowed = true
+                    let command = """
+                    {
+                        "action" : "sendMessageToContactId",
+                        "id" : "4.1141101534045745",
+                        "param" : {
+                            "contactId" : "\(mockMiniAppInfo.id)",
+                            "messageToContact" : {
+                                "action" : "\(mockHost)/",
+                                "caption" : "Sample caption",
+                                "image" : "data:image/png;base64,Test==",
+                                "text" : "Sample text"
+                            }
+                        }
+                    }
+                    """
+                    updateCustomPermissionStatus(miniAppId: mockMiniAppInfo.id, permissionType: .sendMessage, status: .allowed)
+                    updateCustomPermissionStatus(miniAppId: mockMiniAppInfo.id, permissionType: .contactsList, status: .allowed)
+                    let mockMessage = MockWKScriptMessage(name: "", body: command as AnyObject)
+                    scriptMessageHandler.userContentController(WKUserContentController(), didReceive: mockMessage)
+                    expect(mockCallbackProtocol.response).toEventually(contain(mockMiniAppInfo.id), timeout: .seconds(5))
+                }
+            }
+            context("when MiniAppScriptMessageHandler receives sendMessageToContactId command but contact ID is not found") {
+                it("will return error") {
                     let mockCallbackProtocol = MockMiniAppCallbackProtocol()
                     let scriptMessageHandler = MiniAppScriptMessageHandler(
                         delegate: mockCallbackProtocol,
@@ -593,7 +659,7 @@ class MiniAppScriptMessageHandlerTests: QuickSpec {
                         "param" : {
                             "contactId" : "\(mockMiniAppInfo.id)",
                             "messageToContact" : {
-                                "action" : "https://www.example.com/",
+                                "action" : "\(mockHost)/",
                                 "caption" : "Sample caption",
                                 "image" : "data:image/png;base64,Test==",
                                 "text" : "Sample text"
@@ -605,19 +671,19 @@ class MiniAppScriptMessageHandlerTests: QuickSpec {
                     updateCustomPermissionStatus(miniAppId: mockMiniAppInfo.id, permissionType: .contactsList, status: .allowed)
                     let mockMessage = MockWKScriptMessage(name: "", body: command as AnyObject)
                     scriptMessageHandler.userContentController(WKUserContentController(), didReceive: mockMessage)
-                    expect(mockCallbackProtocol.response).toEventually(contain(mockMiniAppInfo.id), timeout: .seconds(5))
+                    expect(mockCallbackProtocol.errorMessage).toEventually(contain(MASDKError.invalidContactId.errorDescription ?? ""), timeout: .seconds(5))
                 }
             }
             context("when MiniAppScriptMessageHandler receives sendMessageToMultipleContacts command") {
                 it("will return list of contact Ids") {
-                    mockMessageInterface.messageContentAllowed = false
+                    mockMessageInterface.messageContentAllowed = true
                     let command = """
                     {
                         "action" : "sendMessageToMultipleContacts",
                         "id" : "5.1141101534045745",
                         "param" : {
                             "messageToContact" : {
-                                "action" : "https://www.example.com/",
+                                "action" : "\(mockHost)/",
                                 "caption" : "Sample caption",
                                 "image" : "data:image/png;base64,Test==",
                                 "text" : "Sample text"
@@ -631,6 +697,38 @@ class MiniAppScriptMessageHandlerTests: QuickSpec {
                     let mockMessage = MockWKScriptMessage(name: "", body: command as AnyObject)
                     scriptMessageHandler.userContentController(WKUserContentController(), didReceive: mockMessage)
                     expect(callbackProtocol.response).toEventually(contain(["contact_id1", "contact_id2"]), timeout: .seconds(5))
+                }
+            }
+            context("when MiniAppScriptMessageHandler receives sendMessageToMultipleContacts command") {
+                it("will return list of contact Ids") {
+                    let mockCallbackProtocol = MockMiniAppCallbackProtocol()
+                    let scriptMessageHandler = MiniAppScriptMessageHandler(
+                        delegate: mockCallbackProtocol,
+                        hostAppMessageDelegate: mockMessageInterface,
+                        adsDisplayer: mockAdsDelegate,
+                        miniAppId: mockMiniAppInfo.id, miniAppTitle: mockMiniAppTitle
+                    )
+                    mockMessageInterface.messageContentAllowed = false
+                    let command = """
+                    {
+                        "action" : "sendMessageToMultipleContacts",
+                        "id" : "5.1141101534045745",
+                        "param" : {
+                            "messageToContact" : {
+                                "action" : "\(mockHost)/",
+                                "caption" : "Sample caption",
+                                "image" : "data:image/png;base64,Test==",
+                                "text" : "Sample text"
+                            }
+                        }
+                    }
+                    """
+                    updateCustomPermissionStatus(miniAppId: mockMiniAppInfo.id, permissionType: .sendMessage, status: .allowed)
+                    updateCustomPermissionStatus(miniAppId: mockMiniAppInfo.id, permissionType: .contactsList, status: .allowed)
+
+                    let mockMessage = MockWKScriptMessage(name: "", body: command as AnyObject)
+                    scriptMessageHandler.userContentController(WKUserContentController(), didReceive: mockMessage)
+                    expect(mockCallbackProtocol.errorMessage).toEventually(contain(MASDKError.invalidContactId.errorDescription ?? ""), timeout: .seconds(5))
                 }
             }
             context("when MiniAppScriptMessageHandler receives sendMessageToContact command") {
@@ -700,6 +798,106 @@ class MiniAppScriptMessageHandlerTests: QuickSpec {
                         let mockMessage = MockWKScriptMessage(name: "", body: command as AnyObject)
                         scriptMessageHandler.userContentController(WKUserContentController(), didReceive: mockMessage)
                         expect(callbackProtocol.errorMessage).toEventually(contain(MiniAppJavaScriptError.unexpectedMessageFormat.rawValue), timeout: .seconds(5))
+                    }
+                }
+                context("when MiniAppScriptMessageHandler receives getPoints command and permission is denied") {
+                    it("will error") {
+                        let mockCallbackProtocol = MockMiniAppCallbackProtocol()
+                        let scriptMessageHandler = MiniAppScriptMessageHandler(
+                            delegate: mockCallbackProtocol,
+                            hostAppMessageDelegate: mockMessageInterface,
+                            adsDisplayer: mockAdsDelegate,
+                            miniAppId: mockMiniAppInfo.id, miniAppTitle: mockMiniAppTitle
+                        )
+                        let command = """
+                        {
+                            "action" : "getPoints",
+                            "id" : "5.1141101534045745",
+                            "param" : null
+                        }
+                        """
+                        updateCustomPermissionStatus(miniAppId: mockMiniAppInfo.id, permissionType: .points, status: .denied)
+                        let mockMessage = MockWKScriptMessage(name: "", body: command as AnyObject)
+                        scriptMessageHandler.userContentController(WKUserContentController(), didReceive: mockMessage)
+                        expect(mockCallbackProtocol.errorMessage).toEventually(contain(MASDKCustomPermissionError.userDenied.rawValue), timeout: .seconds(10))
+
+                    }
+                }
+                context("when MiniAppScriptMessageHandler receives getPoints command and permission is allowed") {
+                    it("will return list of contact Ids") {
+                        let mockCallbackProtocol = MockMiniAppCallbackProtocol()
+                        let scriptMessageHandler = MiniAppScriptMessageHandler(
+                            delegate: mockCallbackProtocol,
+                            hostAppMessageDelegate: mockMessageInterface,
+                            adsDisplayer: mockAdsDelegate,
+                            miniAppId: mockMiniAppInfo.id, miniAppTitle: mockMiniAppTitle
+                        )
+                        let command = """
+                        {
+                            "action" : "getPoints",
+                            "id" : "5.1141101534045745",
+                            "param" : null
+                        }
+                        """
+                        updateCustomPermissionStatus(miniAppId: mockMiniAppInfo.id, permissionType: .points, status: .allowed)
+                        mockMessageInterface.mockPointsInterface = false
+                        let mockMessage = MockWKScriptMessage(name: "", body: command as AnyObject)
+                        scriptMessageHandler.userContentController(WKUserContentController(), didReceive: mockMessage)
+                        expect(mockCallbackProtocol.errorMessage).toEventually(contain("Failed to retrieve Points details"), timeout: .seconds(10))
+
+                    }
+                }
+                context("when MiniAppScriptMessageHandler receives getPoints command and permission is allowed") {
+                    it("will return list of contact Ids") {
+                        let mockCallbackProtocol = MockMiniAppCallbackProtocol()
+                        let scriptMessageHandler = MiniAppScriptMessageHandler(
+                            delegate: mockCallbackProtocol,
+                            hostAppMessageDelegate: mockMessageInterface,
+                            adsDisplayer: mockAdsDelegate,
+                            miniAppId: mockMiniAppInfo.id, miniAppTitle: mockMiniAppTitle
+                        )
+                        let command = """
+                        {
+                            "action" : "getPoints",
+                            "id" : "5.1141101534045745",
+                            "param" : null
+                        }
+                        """
+                        updateCustomPermissionStatus(miniAppId: mockMiniAppInfo.id, permissionType: .points, status: .allowed)
+                        mockMessageInterface.mockPointsInterface = true
+                        let mockMessage = MockWKScriptMessage(name: "", body: command as AnyObject)
+                        scriptMessageHandler.userContentController(WKUserContentController(), didReceive: mockMessage)
+                        expect(mockCallbackProtocol.response).toEventually(contain("standard"), timeout: .seconds(10))
+                    }
+                }
+                context("when MiniAppScriptMessageHandler receives getHostEnvironmentInfo command") {
+                    it("will return ") {
+                        let mockCallbackProtocol = MockMiniAppCallbackProtocol()
+                        let scriptMessageHandler = MiniAppScriptMessageHandler(
+                            delegate: mockCallbackProtocol,
+                            hostAppMessageDelegate: mockMessageInterface,
+                            adsDisplayer: mockAdsDelegate,
+                            miniAppId: mockMiniAppInfo.id, miniAppTitle: mockMiniAppTitle
+                        )
+                        let command = """
+                        {
+                            "action" : "getHostEnvironmentInfo",
+                            "id" : "5.1141101534045745",
+                            "param" : null
+                        }
+                        """
+                        mockMessageInterface.mockPointsInterface = true
+                        let mockMessage = MockWKScriptMessage(name: "", body: command as AnyObject)
+                        scriptMessageHandler.userContentController(WKUserContentController(), didReceive: mockMessage)
+                        guard let responseData: Data = mockCallbackProtocol.response?.data(using: .utf8) else {
+                            fail("MiniAppScriptMessageHandler - getHostEnvironmentInfo failed")
+                            return
+                        }
+                        let environment = Environment(bundle: Bundle.main)
+                        let environmentInfo = ResponseDecoder.decode(decodeType: MAHostEnvironmentInfo.self, data: responseData)
+                        expect(environmentInfo?.sdkVersion).toEventually(equal(environment.sdkVersion?.description))
+                        expect(environmentInfo?.platformVersion).toEventually(equal(UIDevice.current.systemVersion))
+                        expect(environmentInfo?.hostVersion).toEventually(equal(environment.appVersion))
                     }
                 }
             }

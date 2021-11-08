@@ -16,7 +16,7 @@ class ViewController: UIViewController {
     }
     var decodeResponse: [MiniAppInfo]? {
         didSet {
-            if let list = self.decodeResponse, !(Config.userDefaults?.bool(forKey: Config.Key.isPreviewMode.rawValue) ?? false) {
+            if let list = self.decodeResponse, !(Config.userDefaults?.value(forKey: Config.Key.isPreviewMode.rawValue) as? Bool ?? false) {
                 self.miniAppsSection = nil
                 self.miniApps = ["": list]
             } else {
@@ -37,6 +37,7 @@ class ViewController: UIViewController {
     let locationManager = CLLocationManager()
     var permissionHandlerObj: PermissionCompletionHandler?
     var currentMiniAppTitle: String?
+    var displayController: DisplayNavigationController?
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -58,8 +59,7 @@ class ViewController: UIViewController {
                 displayAlert(title: MASDKLocale.localize("miniapp.sdk.ios.error.title"), message: MASDKLocale.localize("miniapp.sdk.ios.error.message.miniapp"), dismissController: true)
                 return
             }
-
-            let displayController = segue.destination as? DisplayNavigationController
+            displayController = segue.destination as? DisplayNavigationController
             displayController?.miniAppInfo = currentMiniAppInfo
             displayController?.miniAppDisplay = miniAppDisplay
             currentMiniAppInfo = nil
@@ -72,9 +72,9 @@ class ViewController: UIViewController {
         }
     }
 
-    func showFirstTimeLaunchScreen(miniAppInfo: MiniAppInfo) {
-        if isMiniAppLaunchedAlready(key: miniAppInfo.id) {
-            compareMiniAppMetaData(miniAppInfo: miniAppInfo) { (result) in
+    func showFirstTimeLaunchScreen(miniAppInfo: MiniAppInfo, config: MiniAppSdkConfig) {
+        if let cachedManifest = MiniApp.shared(with: config).getDownloadedManifest(miniAppId: miniAppInfo.id) {
+            compareMiniAppMetaData(miniAppInfo: miniAppInfo, manifest: cachedManifest, config: config) { (result) in
                 switch result {
                 case .success:
                     self.displayMiniApp(miniAppInfo: miniAppInfo)
@@ -83,33 +83,36 @@ class ViewController: UIViewController {
                 }
             }
         } else {
-            fetchMiniAppMetaData(miniAppInfo: miniAppInfo)
+            fetchMiniAppMetaData(miniAppInfo: miniAppInfo, config: config)
         }
     }
 
-    func fetchMiniAppMetaData(miniAppInfo: MiniAppInfo) {
-        MiniApp.shared(with: Config.current()).getMiniAppManifest(miniAppId: miniAppInfo.id, miniAppVersion: miniAppInfo.version.versionId) { (result) in
+    func fetchMiniAppMetaData(miniAppInfo: MiniAppInfo, config: MiniAppSdkConfig) {
+        MiniApp.shared(with: config).getMiniAppManifest(miniAppId: miniAppInfo.id, miniAppVersion: miniAppInfo.version.versionId) { (result) in
             switch result {
             case .success(let manifestData):
-                self.displayFirstTimeLaunchScreen(
-                    reqPermissions: manifestData.requiredPermissions ?? [],
-                    optPermissions: manifestData.optionalPermissions ?? [],
-                    miniAppInfo: miniAppInfo,
-                    customMetaData: manifestData.customMetaData ?? [:])
+                self.dismissProgressIndicator {
+                    self.displayFirstTimeLaunchScreen(manifest: manifestData, miniAppInfo: miniAppInfo)
+                }
             case .failure:
                 self.displayAlert(title: MASDKLocale.localize("miniapp.sdk.ios.error.title"), message: MASDKLocale.localize("miniapp.sdk.ios.error.message.single"), dismissController: true)
             }
         }
     }
 
-    func compareMiniAppMetaData(miniAppInfo: MiniAppInfo, completionHandler: @escaping (Result<Bool, Error>) -> Void) {
-        guard let downloadedManifest = MiniApp.shared(with: Config.current()).getDownloadedManifest(miniAppId: miniAppInfo.id) else {
+    func compareMiniAppMetaData(miniAppInfo: MiniAppInfo,
+                                manifest: MiniAppManifest?,
+                                config: MiniAppSdkConfig,
+                                completionHandler: @escaping (Result<Bool, Error>) -> Void) {
+        guard let downloadedManifest = manifest else {
             return completionHandler(.success(true))
         }
-        MiniApp.shared(with: Config.current()).getMiniAppManifest(miniAppId: miniAppInfo.id, miniAppVersion: miniAppInfo.version.versionId) { (result) in
+        MiniApp.shared(with: config).getMiniAppManifest(miniAppId: miniAppInfo.id, miniAppVersion: miniAppInfo.version.versionId) { (result) in
             switch result {
             case .success(let manifestData):
-                self.checkIfManifestChanged(latestManifest: manifestData, oldManifest: downloadedManifest, miniAppInfo: miniAppInfo)
+                self.dismissProgressIndicator {
+                    self.checkIfManifestChanged(latestManifest: manifestData, oldManifest: downloadedManifest, miniAppInfo: miniAppInfo)
+                }
             case .failure(let error):
                 if error.isDeviceOfflineDownloadError() {
                     self.displayMiniApp(miniAppInfo: miniAppInfo)
@@ -121,41 +124,31 @@ class ViewController: UIViewController {
     }
 
     func checkIfManifestChanged(latestManifest: MiniAppManifest, oldManifest: MiniAppManifest, miniAppInfo: MiniAppInfo) {
-        let cachedPermissions = MiniApp.shared().getCustomPermissions(forMiniApp: miniAppInfo.id)
-        let cachedAllowedPermissions = cachedPermissions.filter { $0.isPermissionGranted.boolValue == true }
-
-        let requiredPermissions = filterPermissions(permsArray: latestManifest.requiredPermissions ?? [],
-                                                    cachedPermissions: cachedAllowedPermissions)
-        if oldManifest == latestManifest && requiredPermissions.count == 0 {
+        if oldManifest == latestManifest {
             self.displayMiniApp(miniAppInfo: miniAppInfo)
         } else {
-                self.displayFirstTimeLaunchScreen(reqPermissions: latestManifest.requiredPermissions ?? [],
-                                                  optPermissions: latestManifest.optionalPermissions ?? [],
-                                                  miniAppInfo: miniAppInfo,
-                                                  manifestUpdated: true,
-                                                  customMetaData: latestManifest.customMetaData ?? [:])
+            displayFirstTimeLaunchScreen(
+                        manifest: latestManifest,
+                        miniAppInfo: miniAppInfo,
+                        manifestUpdated: true)
         }
     }
 
     func filterPermissions(permsArray: [MASDKCustomPermissionModel], cachedPermissions: [MASDKCustomPermissionModel]) -> [MASDKCustomPermissionModel] {
-        return permsArray.filter {
+         permsArray.filter {
             !cachedPermissions.contains($0)
         }
     }
 
-    func displayFirstTimeLaunchScreen(reqPermissions: [MASDKCustomPermissionModel],
-                                      optPermissions: [MASDKCustomPermissionModel],
+    func displayFirstTimeLaunchScreen(manifest: MiniAppManifest,
                                       miniAppInfo: MiniAppInfo,
-                                      manifestUpdated: Bool? = false,
-                                      customMetaData: [String: String]) {
+                                      manifestUpdated: Bool? = false) {
         DispatchQueue.main.async {
             if let viewController = UIStoryboard(name: "Main", bundle: nil).instantiateViewController(withIdentifier: "MAFirstTimeLaunch") as? MAFirstLaunchController {
                 self.currentMiniAppInfo = miniAppInfo
                 viewController.miniAppInfo = miniAppInfo
-                viewController.requiredPermissions = reqPermissions
-                viewController.optionalPermissions = optPermissions
+                viewController.miniAppManifest = manifest
                 viewController.isManifestUpdated = manifestUpdated ?? false
-                viewController.customMetaData = customMetaData
                 viewController.launchScreenDelegate = self
                 viewController.modalPresentationStyle = .fullScreen
                 self.present(viewController, animated: true)
@@ -166,8 +159,72 @@ class ViewController: UIViewController {
     func displayMiniApp(miniAppInfo: MiniAppInfo) {
         self.showProgressIndicator {
             self.currentMiniAppInfo = miniAppInfo
-            self.fetchMiniApp(for: miniAppInfo)
+            self.showMiniApp(for: miniAppInfo)
             self.currentMiniAppTitle = miniAppInfo.displayName
+        }
+    }
+
+    func getMiniAppPreviewInfo(previewToken: String, config: MiniAppSdkConfig) {
+        self.showProgressIndicator {
+            MiniApp.shared(with: config).getMiniAppPreviewInfo(using: previewToken) { (result) in
+                switch result {
+                case .success(let previewInfo):
+                    self.dismissProgressIndicator {
+                        if previewInfo.host != nil {
+                            self.showFirstTimeLaunchScreen(miniAppInfo: previewInfo.miniapp,
+                                                           config: Config.current(rasProjectId: previewInfo.host?.id, subscriptionKey: previewInfo.host?.subscriptionkey))
+                        } else {
+                            self.showFirstTimeLaunchScreen(miniAppInfo: previewInfo.miniapp, config: Config.current())
+                        }
+                    }
+                case .failure(let error):
+                    self.dismissProgressIndicator {
+                        self.checkPreviewMiniAppError(error: error as MASDKError)
+                    }
+                }
+            }
+        }
+    }
+
+    func checkPreviewMiniAppError(error: MASDKError) {
+        switch error {
+        case .serverError(let code, _):
+            if code == 404 {
+                validateDeepLinkError(miniAppInfo: nil, errorType: .qrCodeExpired)
+            } else if code == 400 {
+                validateDeepLinkError(miniAppInfo: nil, errorType: .miniAppPermissionError)
+            }
+        default:
+            validateDeepLinkError(miniAppInfo: nil, errorType: .miniAppNoLongerExists)
+        }
+    }
+
+    /// Method to display Mini App Error Screen
+    /// - Parameters:
+    ///   - miniAppInfo: miniAppInfo details that will be displayed in the error screen
+    ///   - errorType: DeeplinkErrorDescriptionType
+    func validateDeepLinkError(miniAppInfo: MiniAppInfo?, errorType: DeeplinkErrorDescriptionType) {
+        if errorType == .miniAppNoLongerExists || errorType == .miniAppPermissionError {
+            displayDeepLinkError(storyboardId: "DeepLinkMiniAppError", miniAppInfo: miniAppInfo, errorType: errorType)
+        } else {
+            displayDeepLinkError(storyboardId: "DeepLinkMiniAppVersionError", miniAppInfo: miniAppInfo, errorType: errorType)
+        }
+    }
+
+    func displayDeepLinkError(storyboardId: String, miniAppInfo: MiniAppInfo?, errorType: DeeplinkErrorDescriptionType) {
+        DispatchQueue.main.async {
+            if let viewController = UIStoryboard(name: "Deeplink",
+                                                 bundle: nil).instantiateViewController(withIdentifier: storyboardId) as? DeeplinkErrorViewController {
+                viewController.errorType = errorType
+                viewController.miniAppInfo = miniAppInfo
+                if errorType == .qrCodeExpired {
+                    viewController.errorTitle = .qrCodeExpiredTitle
+                } else if errorType == .cannotBePreviewed {
+                    viewController.errorTitle = .cannotBePreviewedTitle
+                }
+                viewController.modalPresentationStyle = .fullScreen
+                self.present(viewController, animated: true, completion: nil)
+            }
         }
     }
 }
@@ -212,7 +269,7 @@ extension ViewController: UITableViewDelegate, UITableViewDataSource {
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
         if let miniAppInfo = self.miniApps?[self.miniAppsSection?[indexPath.section] ?? ""]?[indexPath.row] {
-            self.showFirstTimeLaunchScreen(miniAppInfo: miniAppInfo)
+            self.showFirstTimeLaunchScreen(miniAppInfo: miniAppInfo, config: Config.current())
         }
     }
 }
@@ -233,7 +290,7 @@ extension ViewController: MALaunchScreenDelegate {
                 return
             }
             self.showProgressIndicator {
-                self.fetchMiniApp(for: info)
+                self.showMiniApp(for: info)
                 self.currentMiniAppTitle = info.displayName
             }
         }
@@ -261,6 +318,7 @@ extension ViewController: UISearchBarDelegate {
         defer {
             tableView.reloadData()
             searchBar.reloadInputViews()
+            tableView.numberOfSections > 0 ? tableView.restore() : tableView.setEmptyMessage("No MiniApps found!")
         }
         searchBar.returnKeyType = .done
 

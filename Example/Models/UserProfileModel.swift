@@ -35,14 +35,6 @@ struct QueryParamInfo: Codable {
     }
 }
 
-struct MiniAppLaunchInfo: Codable {
-    var isLaunchedAlready: Bool
-
-    init(isLaunchedAlready: Bool = false) {
-        self.isLaunchedAlready = isLaunchedAlready
-    }
-}
-
 func setProfileSettings(forKey key: String = "UserProfileDetail", userDisplayName: String?, profileImageURI: String?, contactList: [MAContact]? = getContactList()) -> Bool {
     if let data = try? PropertyListEncoder().encode(UserProfileModel(displayName: userDisplayName ?? "", profileImageURI: profileImageURI, contactList: contactList)) {
         UserDefaults.standard.set(data, forKey: key)
@@ -59,6 +51,22 @@ func getProfileSettings(key: String = "UserProfileDetail") -> UserProfileModel? 
     return nil
 }
 
+func getDeepLinksList(key: String = "DeeplinkList") -> [String] {
+    if let deeplinksData = UserDefaults.standard.data(forKey: key) {
+        let deeplinksList = try? PropertyListDecoder().decode([String].self, from: deeplinksData)
+        return deeplinksList ?? []
+    }
+    return []
+}
+
+@discardableResult func setDeepLinksList(forKey key: String = "DeeplinkList", deeplinksList: [String]? = getDeepLinksList()) -> Bool {
+    if let data = try? PropertyListEncoder().encode(deeplinksList) {
+        UserDefaults.standard.set(data, forKey: key)
+        return UserDefaults.standard.synchronize()
+    }
+    return false
+}
+
 func getContactList(key: String = "UserProfileDetail") -> [MAContact]? {
     if let userProfile = UserDefaults.standard.data(forKey: key) {
         let userProfileData = try? PropertyListDecoder().decode(UserProfileModel.self, from: userProfile)
@@ -73,6 +81,10 @@ func updateContactList(list: [MAContact]?) {
     } else {
         _ = setProfileSettings(userDisplayName: "", profileImageURI: "", contactList: list)
     }
+}
+
+@discardableResult func updateDeeplinkList(list: [String]?) -> Bool {
+    return setDeepLinksList(deeplinksList: list)
 }
 
 @discardableResult func saveTokenInfo(accessToken: String, expiryDate: Date, scopes: MASDKAccessTokenScopes?, forKey key: String = "AccessTokenInfo") -> Bool {
@@ -105,20 +117,4 @@ func getQueryParam(key: String = "QueryParam") -> String {
         return queryParam?.queryString ?? ""
     }
     return ""
-}
-
-func saveMiniAppLaunchInfo(isMiniAppLaunched: Bool, forKey key: String = "MAFirstTimeLaunch") -> Bool {
-    if let data = try? PropertyListEncoder().encode(MiniAppLaunchInfo(isLaunchedAlready: isMiniAppLaunched)) {
-        UserDefaults.standard.set(data, forKey: key)
-        return UserDefaults.standard.synchronize()
-    }
-    return false
-}
-
-func isMiniAppLaunchedAlready(key: String = "MAFirstTimeLaunch") -> Bool {
-    if let data = UserDefaults.standard.data(forKey: key) {
-        let launchInfo = try? PropertyListDecoder().decode(MiniAppLaunchInfo.self, from: data)
-        return launchInfo?.isLaunchedAlready ?? false
-    }
-    return false
 }

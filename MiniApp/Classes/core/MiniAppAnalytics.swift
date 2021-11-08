@@ -10,13 +10,16 @@ internal enum MiniAppRATEvent: String, CaseIterable {
     case hostLaunch = "host_launch"
     case open
     case close
+    case signatureFailure = "mini_app_signature_validation_fail"
 
     func name() -> String {
-        return "mini_app_\(rawValue)"
+        "mini_app_\(rawValue)"
     }
 
     func eType() -> MiniAppRATEventType {
         switch self {
+        case .signatureFailure:
+            return .click
         case .hostLaunch:
             return .appear
         case .open, .close:
@@ -32,7 +35,7 @@ internal enum MiniAppAnalyticsParameter: String, CaseIterable {
     case sdkVersion = "sdk_version"
 
     func name() -> String {
-        return "mini_app_\(rawValue)"
+        "mini_app_\(rawValue)"
     }
 }
 
@@ -49,6 +52,9 @@ public class MiniAppAnalyticsLoader: NSObject {
 
 public class MiniAppAnalytics {
     public static let notificationName = Notification.Name("com.rakuten.esd.sdk.events.custom")
+    open class var sdkVersion: String? {
+        Bundle.miniAppBundle?.infoDictionary?["CFBundleShortVersionString"] as? String
+    }
     internal static let defaultRATAcc = MAAnalyticsConfig(acc: "1553", aid: "1")
 
     internal class func getAnalyticsInfo(miniAppId: String? = nil, miniAppVersion: String? = nil, projectId: String? = nil) -> [(String, String)] {
@@ -62,7 +68,7 @@ public class MiniAppAnalytics {
         if let projectId = projectId ?? Bundle.main.value(for: Environment.Key.projectId.rawValue) {
             result.append((MiniAppAnalyticsParameter.projectId.name(), projectId))
         }
-        if let version = Bundle(identifier: "org.cocoapods.MiniApp")?.infoDictionary?["CFBundleShortVersionString"] as? String {
+        if let version = sdkVersion {
             result.append((MiniAppAnalyticsParameter.sdkVersion.name(), version))
         }
         return result

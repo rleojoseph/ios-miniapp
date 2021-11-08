@@ -14,9 +14,9 @@ public class MiniAppNavigationConfig {
     var navigationView: (UIView & MiniAppNavigationDelegate)?
 
     public init(
-        navigationBarVisibility: MiniAppNavigationVisibility? = .never,
-        navigationDelegate: MiniAppNavigationDelegate? = nil,
-        customNavigationView: (UIView & MiniAppNavigationDelegate)? = nil) {
+            navigationBarVisibility: MiniAppNavigationVisibility? = .never,
+            navigationDelegate: MiniAppNavigationDelegate? = nil,
+            customNavigationView: (UIView & MiniAppNavigationDelegate)? = nil) {
         self.navigationBarVisibility = navigationBarVisibility
         self.navigationDelegate = navigationDelegate
         self.navigationView = customNavigationView
@@ -27,7 +27,7 @@ public class MiniAppNavigationConfig {
 public typealias MiniAppNavigationResponseHandler = (URL) -> Void
 
 /// A delegate used by Mini App view to communicate about available actions based on current user interactions on the Mini App
-public protocol MiniAppNavigationDelegate: class {
+public protocol MiniAppNavigationDelegate: AnyObject {
     /// This delegate method is called when an external URL is tapped into a Mini App
     /// so you can display your own webview to load the url parameter, for example.
     /// A `MiniAppNavigationResponseHandler` is also provided so you can give a proper
@@ -35,7 +35,7 @@ public protocol MiniAppNavigationDelegate: class {
     /// - Parameters:
     ///   - url: the external URL triggered from the MiniApp
     ///   - responseHandler: a `MiniAppNavigationResponseHandler` used to provide an URL to the Mini App
-    func miniAppNavigation(shouldOpen url: URL, with responseHandler: @escaping MiniAppNavigationResponseHandler)
+    func miniAppNavigation(shouldOpen url: URL, with responseHandler: @escaping MiniAppNavigationResponseHandler, onClose closeHandler: MiniAppNavigationResponseHandler?)
     /// This delegate method is called when an external URL is tapped into a url loaded Mini App
     /// so you can display your own webview to load the url parameter, for example.
     /// A `MiniAppNavigationResponseHandler` is also provided so you can give a proper
@@ -45,7 +45,10 @@ public protocol MiniAppNavigationDelegate: class {
     ///   - url: the external URL triggered from the MiniApp
     ///   - responseHandler: a `MiniAppNavigationResponseHandler` used to provide an URL to the Mini App
     ///   - customMiniAppURL: The url that was used to load the Mini App.
-    func miniAppNavigation(shouldOpen url: URL, with responseHandler: @escaping MiniAppNavigationResponseHandler, customMiniAppURL: URL)
+    func miniAppNavigation(shouldOpen url: URL,
+                           with responseHandler: @escaping MiniAppNavigationResponseHandler,
+                           onClose closeHandler: MiniAppNavigationResponseHandler?,
+                           customMiniAppURL: URL)
     /// This delegate method is called when a navigation is performed inside the Mini App.
     /// - Parameters:
     ///   - actions: a list of `MiniAppNavigationAction` that can be used to navigate inside the Mini App
@@ -54,29 +57,65 @@ public protocol MiniAppNavigationDelegate: class {
     /// - Parameters:
     ///   - delegate: a`MiniAppNavigationBarDelegate` the can be used to call `MiniAppNavigationAction` on the Mini App view
     func miniAppNavigation(delegate: MiniAppNavigationBarDelegate)
+
+    /// This delegate is called whenever any page is routed and it tells whether the webview canGoBack or canGoForward
+    /// - Parameters:
+    ///   - back: True if WebView can go back
+    ///   - forward: True if WebView can go forward
+    func miniAppNavigationCanGo(back: Bool, forward: Bool)
 }
 
 public extension MiniAppNavigationDelegate {
-    func miniAppNavigation(shouldOpen url: URL, with responseHandler: @escaping MiniAppNavigationResponseHandler) {
-        MiniAppExternalWebViewController.presentModally(url: url,
-                                                        externalLinkResponseHandler: responseHandler,
-                                                        customMiniAppURL: nil)
-    }
     func miniAppNavigation(shouldOpen url: URL,
                            with responseHandler: @escaping MiniAppNavigationResponseHandler,
-                           customMiniAppURL: URL) {
+                           onClose closeHandler: MiniAppNavigationResponseHandler?) {
         MiniAppExternalWebViewController.presentModally(url: url,
                                                         externalLinkResponseHandler: responseHandler,
-                                                        customMiniAppURL: customMiniAppURL)
+                                                        customMiniAppURL: nil,
+                                                        onCloseHandler: closeHandler)
     }
+
+    func miniAppNavigation(shouldOpen url: URL,
+                           with responseHandler: @escaping MiniAppNavigationResponseHandler,
+                           onClose closeHandler: MiniAppNavigationResponseHandler?,
+                           customMiniAppURL: URL) {
+        checkWebsiteSecurity(url: url) { canLaunch in
+            DispatchQueue.main.async {
+                if canLaunch {
+                    MiniAppExternalWebViewController.presentModally(url: url,
+                                                                    externalLinkResponseHandler: responseHandler,
+                                                                    customMiniAppURL: customMiniAppURL,
+                                                                    onCloseHandler: closeHandler)
+                } else {
+                    UIApplication.shared.open(url)
+                }
+            }
+        }
+    }
+
     func miniAppNavigation(canUse actions: [MiniAppNavigationAction]) {
     }
+
     func miniAppNavigation(delegate: MiniAppNavigationBarDelegate) {
+    }
+
+    func miniAppNavigationCanGo(back: Bool, forward: Bool) {
+    }
+
+    func checkWebsiteSecurity(url: URL, with responseHandler: @escaping (Bool) -> Void) {
+        let urlRequest = URLRequest(url: url)
+        let config     = URLSessionConfiguration.default
+        let session    = URLSession(configuration: config)
+
+        let task = session.dataTask(with: urlRequest, completionHandler: { (_, _, error) in
+            responseHandler(error == nil)
+        })
+        task.resume()
     }
 }
 
 /// A delegate implemented by the Mini App view to get the actions triggered by UI
-public protocol MiniAppNavigationBarDelegate: class {
+public protocol MiniAppNavigationBarDelegate: AnyObject {
     /// Method to call when a user want to interact with Mini App navigation history
     /// - Parameters:
     ///    - action: the action requested (go back or go forward)
