@@ -20,8 +20,8 @@ let package = Package(
     targets: [
         .binaryTarget(
             name: "MiniApp",
-            url: "https://github.com/rakutentech/ios-miniapp/releases/download/v3.9.0/MiniApp.xcframework.zip",
-            checksum: "c1552faab96627c38d9c22eda89cf394cac47ade9c87aa21b594a319a80854a9"
+            url: "https://github.com/Climbatize/ios-miniapp/releases/download/v4.0.0/MiniApp.xcframework.zip",
+            checksum: "1146ea2d71d9b06e5a238d666b21560166499e45177450033e727315340616ba"
         )
     ],
     swiftLanguageVersions: [
