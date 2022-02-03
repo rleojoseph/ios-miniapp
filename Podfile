@@ -2,7 +2,7 @@
 use_frameworks!
 
 sdk_name = "MiniApp"
-is_code_cov = false
+is_code_cov = true
 
 secrets = [
   "RMA_API_ENDPOINT_PROD",
@@ -49,8 +49,6 @@ post_install do |installer|
     end
   end
 
-  if is_code_cov === false 
-    system("./scripts/configure-secrets.sh #{sdk_name} #{secrets.join(" ")}")
-    system("./scripts/generate-ssh-pin.sh")
-  end
+  system("./scripts/configure-secrets.sh #{sdk_name} #{secrets.join(" ")}")
+  system("./scripts/generate-ssh-pin.sh")
 end
