@@ -14,7 +14,7 @@ jobs:
       run: |
         pod install
         bundle exec code_coverage
-      uses: codecov/codecov-action@v2
-        with:
-            fail_ci_if_error: true
-            verbose: true
+    - uses: codecov/codecov-action@v2
+      with:
+        fail_ci_if_error: true
+        verbose: true
