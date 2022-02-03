@@ -15,6 +15,7 @@ jobs:
         sed -i -e 's/is_code_cov = false/is_code_cov = true/g' $GITHUB_WORKSPACE/Podfile
         pod install
         bundle install
+        xcodebuild -workspace ./MiniApp.xcworkspace -scheme MiniApp_Tests -derivedDataPath $GITHUB_WORKSPACE/ -destination 'platform=iOS Simulator,name=iPhone 12,OS=latest' -enableCodeCoverage YES clean build test
         bundle exec fastlane code_coverage
     - uses: codecov/codecov-action@v2
       with:

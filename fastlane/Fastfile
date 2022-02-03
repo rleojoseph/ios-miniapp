@@ -12,7 +12,6 @@ platform :ios do
 
   desc "Code Coverage Upload"
   lane :code_coverage do |options|
-    tests
     slather_report
   end
 
@@ -31,18 +30,21 @@ platform :ios do
 
   desc "Unit tests"
   lane :tests do |options|
-      # xcversion(version: "~> 13.2")
-      # updatePods
-      # fetched_sim = sh("xcrun simctl list | grep 'Fastlane' | cat")
-      # if !fetched_sim.empty?
-      #     sh("xcrun", "simctl", "delete", "iPhone Fastlane")
-      # end
-      # sh("xcrun","simctl","create","iPhone Fastlane", "com.apple.CoreSimulator.SimDeviceType.iPhone-8","com.apple.CoreSimulator.SimRuntime.iOS-15-2")
+      xcversion(version: "~> 13.2")
+      updatePods
+      fetched_sim = sh("xcrun simctl list | grep 'Fastlane' | cat")
+      if !fetched_sim.empty?
+          sh("xcrun", "simctl", "delete", "iPhone Fastlane")
+      end
+      sh("xcrun","simctl","create","iPhone Fastlane", "com.apple.CoreSimulator.SimDeviceType.iPhone-8","com.apple.CoreSimulator.SimRuntime.iOS-15-2")
       scan(
         clean: true,
         output_directory: './artifacts/unit-tests',
         scheme: 'MiniApp_Tests',
-        code_coverage: true)
+        device: 'iPhone Fastlane',
+        code_coverage: true,
+        output_types: 'json-compilation-database,html,junit',
+        output_files: 'compile_commands.json,report.html,report.junit')
   end
 
   desc "Slather Coverage report"
