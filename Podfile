@@ -2,6 +2,8 @@
 use_frameworks!
 
 sdk_name = "MiniApp"
+is_code_cov = false
+
 secrets = [
   "RMA_API_ENDPOINT_PROD",
   "RMA_API_ENDPOINT_STG",
@@ -46,6 +48,9 @@ post_install do |installer|
       config.build_settings['CODE_SIGNING_ALLOWED'] = "NO"
     end
   end
-  system("./scripts/configure-secrets.sh #{sdk_name} #{secrets.join(" ")}")
-  system("./scripts/generate-ssh-pin.sh")
+
+  if is_code_cov === false 
+    system("./scripts/configure-secrets.sh #{sdk_name} #{secrets.join(" ")}")
+    system("./scripts/generate-ssh-pin.sh")
+  end
 end
