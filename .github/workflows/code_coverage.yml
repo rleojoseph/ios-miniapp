@@ -1,0 +1,20 @@
+name: Swiftlint Check
+
+on:
+  pull_request:
+    branches: [ master, candidate, gh-pages ]
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+    - name: Repository checkout
+      uses: actions/checkout@v2
+    - name: Run Code Coverage
+      run: |
+        pod install
+        bundle exec code_coverage
+      uses: codecov/codecov-action@v2
+        with:
+            fail_ci_if_error: true
+            verbose: true

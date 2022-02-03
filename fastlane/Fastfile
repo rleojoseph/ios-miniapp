@@ -10,6 +10,12 @@ platform :ios do
     cocoapods(repo_update: ENV['MA_FL_CP_REPO_UPDATE'] || false)
   end
 
+  desc "Code Coverage Upload"
+  lane :code_coverage do |options|
+    tests
+    slather_report
+  end
+
   desc "Check lint"
   lane :ci do |options|
     swiftlint(
@@ -40,6 +46,17 @@ platform :ios do
         code_coverage: true,
         output_types: 'json-compilation-database,html,junit',
         output_files: 'compile_commands.json,report.html,report.junit')
+  end
+
+  desc "Slather Coverage report"
+  lane :slather_report do |options|
+    slather(
+      scheme: "MiniApp-Example",
+      proj: "Sample.xcodeproj",
+      workspace: "MiniApp.xcworkspace",
+      output_directory: "fastlane/code_coverage",
+      cobertura_xml: true,
+    )    
   end
 
   lane :build_simulator do |options|
