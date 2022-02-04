@@ -16,7 +16,6 @@ secrets = [
 ]
 
 def miniapp_pods
-  pod 'MiniApp/Admob8', :path => './'
   pod 'MiniApp/UI', :path => './'
   pod 'MiniApp/Signature', :path => './'
 end
@@ -29,11 +28,12 @@ target sdk_name + '_Example' do
   miniapp_pods
   pod 'AppCenter/Crashes'
   pod 'RAnalytics', :source => 'https://github.com/rakutentech/ios-analytics-framework.git'
-end
-target sdk_name + '_Tests' do
-  inherit! :search_paths
-  pod 'Nimble', '~>9.2.1'
-  pod 'Quick', '~>4.0.0'
+
+  target sdk_name + '_Tests' do
+    inherit! :search_paths
+    pod 'Nimble', '~>9.2.1'
+    pod 'Quick', '~>4.0.0'
+  end
 end
 
 post_install do |installer|
