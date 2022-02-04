@@ -5,7 +5,7 @@ on:
     branches: [ master, candidate, gh-pages ]
 
 jobs:
-  scan_and_report:
+  code_cov:
     runs-on: macos-latest
     steps:
     - name: Repository checkout
@@ -15,14 +15,6 @@ jobs:
         sed -i -e 's/is_code_cov = false/is_code_cov = true/g' $GITHUB_WORKSPACE/Podfile
         pod install
         bundle install
-        gem install scan
-        xcodebuild(
-          archive: true,
-          archive_path: "artifacts/MiniApp-Example.xcarchive",
-          workspace: "MiniApp.xcworkspace",
-          scheme: "MiniApp-Example",
-          xcargs: "-configuration Debug -sdk 'iphonesimulator' -destination 'generic/platform=iOS Simulator' -derivedDataPath 'artifacts/derivedData'"
-        )
         bundle exec fastlane code_coverage
     - uses: codecov/codecov-action@v2
       with:
