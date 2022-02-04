@@ -16,6 +16,13 @@ jobs:
         pod install
         bundle install
         gem install scan
+        xcodebuild(
+          archive: true,
+          archive_path: "artifacts/MiniApp-Example.xcarchive",
+          workspace: "MiniApp.xcworkspace",
+          scheme: "MiniApp-Example",
+          xcargs: "-configuration Debug -sdk 'iphonesimulator' -destination 'generic/platform=iOS Simulator' -derivedDataPath 'artifacts/derivedData'"
+        )
         bundle exec fastlane code_coverage
     - uses: codecov/codecov-action@v2
       with:

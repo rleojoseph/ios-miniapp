@@ -3,7 +3,6 @@ use_frameworks!
 
 sdk_name = "MiniApp"
 is_code_cov = true
-
 secrets = [
   "RMA_API_ENDPOINT_PROD",
   "RMA_API_ENDPOINT_STG",

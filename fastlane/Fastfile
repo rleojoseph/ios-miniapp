@@ -18,7 +18,6 @@ platform :ios do
 
   desc "Build & Test"
   lane :build_and_test do |options|
-    build_simulator
     tests
     slather_report
   end
