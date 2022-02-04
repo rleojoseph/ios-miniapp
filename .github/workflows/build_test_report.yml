@@ -5,7 +5,7 @@ on:
     branches: [ master, candidate, gh-pages ]
 
 jobs:
-  scan_and_report:
+  scan_and:
     runs-on: macos-latest
     steps:
     - name: Repository checkout
@@ -16,8 +16,16 @@ jobs:
         pod install
         bundle install
         gem install scan
-        bundle exec fastlane code_coverage
+        scan(
+          clean: true,
+          output_directory: './artifacts/unit-tests',
+          scheme: 'MiniApp_Tests',
+          code_coverage: true,
+          build_for_testing: true,
+        )
+        bundle exec fastlane build_and_test
     - uses: codecov/codecov-action@v2
       with:
         fail_ci_if_error: true
-        verbose: true 
+        verbose: true
+  
