@@ -12,6 +12,7 @@ platform :ios do
 
   desc "Code Coverage Upload"
   lane :code_coverage do |options|
+    tests
     slather_report
   end
 
