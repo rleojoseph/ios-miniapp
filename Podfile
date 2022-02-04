@@ -29,12 +29,11 @@ target sdk_name + '_Example' do
   miniapp_pods
   pod 'AppCenter/Crashes'
   pod 'RAnalytics', :source => 'https://github.com/rakutentech/ios-analytics-framework.git'
-
-  target sdk_name + '_Tests' do
-    inherit! :search_paths
-    pod 'Nimble', '~>9.2.1'
-    pod 'Quick', '~>4.0.0'
-  end
+end
+target sdk_name + '_Tests' do
+  inherit! :search_paths
+  pod 'Nimble', '~>9.2.1'
+  pod 'Quick', '~>4.0.0'
 end
 
 post_install do |installer|
