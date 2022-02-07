@@ -20,6 +20,7 @@ jobs:
         /usr/libexec/PlistBuddy -c "Set :RMAAPIEndpoint ${{secrets.RMAAPIEndpoint}}" $GITHUB_WORKSPACE/Example/Info.plist
         echo `Build, test and Report 2`
         /usr/libexec/PlistBuddy -c 'print RATEndpoint' $GITHUB_WORKSPACE/Example/Info.plist
+        sh $GITHUB_WORKSPACE/scripts/gen-cov.sh
         bundle exec fastlane code_coverage
     - uses: codecov/codecov-action@v2
       with:
