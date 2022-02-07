@@ -14,18 +14,17 @@ ignore:
   - "Sources/Classes/core/Extensions/UIWindow+MiniApp.swift"
   - "Sources/Classes/admob/AdMobDisplayer.swift"
   - "Sources/Classes/core/Display/ViewControllers/Custom\ Permissions/CustomPermissionsRequestViewController.swift"
+  - "Sources/Classes/core/Protocols/MiniAppShareContentDelegate.swift"
 
 coverage:
   status:
-    patch:
+    patch: off
       default:
         target: 80%
-        threshold: 5%
         base: auto 
         if_ci_failed: ignore
     project:
       default:
         target: 80%
-        threshold: 5%
         base: auto
         if_ci_failed: ignore
