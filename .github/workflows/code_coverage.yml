@@ -13,9 +13,7 @@ jobs:
     - name: Run Code Coverage
       run: |
         sed -i -e 's/is_code_cov = false/is_code_cov = true/g' $GITHUB_WORKSPACE/Podfile
-        pod install
-        bundle install
-        bundle exec fastlane code_coverage
+        sh $GITHUB_WORKSPACE/scripts/generate-coverage.sh
     - uses: codecov/codecov-action@v2
       with:
         fail_ci_if_error: true
