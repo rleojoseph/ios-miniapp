@@ -12,10 +12,6 @@ platform :ios do
 
   desc "Check lint"
   lane :ci do |options|
-    swiftlint(
-      strict: true,
-      ignore_exit_status: false
-    )
 # Uncomment this to disable Unit tests on Bitrise
 #     if !is_ci
        tests
@@ -26,18 +22,10 @@ platform :ios do
 
   desc "Unit tests"
   lane :tests do |options|
-      xcversion(version: "~> 13.2")
-      updatePods
-      fetched_sim = sh("xcrun simctl list | grep 'Fastlane' | cat")
-      if !fetched_sim.empty?
-          sh("xcrun", "simctl", "delete", "iPhone Fastlane")
-      end
-      sh("xcrun","simctl","create","iPhone Fastlane", "com.apple.CoreSimulator.SimDeviceType.iPhone-8","com.apple.CoreSimulator.SimRuntime.iOS-15-2")
       scan(
         clean: true,
         output_directory: './artifacts/unit-tests',
         scheme: 'MiniApp_Tests',
-        device: 'iPhone Fastlane',
         code_coverage: true,
         output_types: 'json-compilation-database,html,junit',
         output_files: 'compile_commands.json,report.html,report.junit')
