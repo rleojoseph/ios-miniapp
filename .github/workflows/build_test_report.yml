@@ -13,12 +13,11 @@ jobs:
     - name: Run Code Coverage
       run: |
         sed -i -e 's/is_code_cov = false/is_code_cov = true/g' $GITHUB_WORKSPACE/Podfile
-        pod install
-        bundle install
-        gem install scan
-        bundle exec fastlane build_and_test
+        /usr/libexec/PlistBuddy -c "Set :RATEndpoint ${{ secrets.RATEndpoint }}" Example/Info.plist
+        /usr/libexec/PlistBuddy -c "Set :RMAAPIEndpoint ${{ secrets.RMAAPIEndpoint }}" Example/Info.plist
+        sh $GITHUB_WORKSPACE/scripts/gen-cov.sh
     - uses: codecov/codecov-action@v2
       with:
         fail_ci_if_error: true
-        verbose: true
+        verbose: true 
   

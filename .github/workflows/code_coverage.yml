@@ -14,6 +14,9 @@ jobs:
       run: |
         sed -i -e 's/is_code_cov = false/is_code_cov = true/g' $GITHUB_WORKSPACE/Podfile
         sh $GITHUB_WORKSPACE/scripts/generate-coverage.sh
+      env:
+          RATEndpoint: ${{ secrets.RATEndpoint }}
+          RMAAPIEndpoint: ${{ secrets.RMAAPIEndpoint }}    
     - uses: codecov/codecov-action@v2
       with:
         fail_ci_if_error: true
