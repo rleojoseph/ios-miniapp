@@ -24,7 +24,7 @@ class FetcherSpec: QuickSpec {
                 fetcher.fetchKey(with: "key", completionHandler: { (_) in
                 })
 
-                expect(apiClientMock.request).toEventually(beAnInstanceOf(URLRequest.self), timeout: .seconds(5))
+                expect(apiClientMock.request).toEventually(beAnInstanceOf(URLRequest.self))
             }
 
             it("will pass nil in the completion handler when environment is incorrectly configured") {
