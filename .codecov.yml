@@ -18,10 +18,10 @@ coverage:
         target: 80%
         threshold: 5%
         base: auto 
-        if_ci_failed: error
+        if_ci_failed: ignore
     project:
       default:
         target: 80%
         threshold: 5%
         base: auto
-        if_ci_failed: error
+        if_ci_failed: ignore
