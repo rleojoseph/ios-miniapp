@@ -17,9 +17,7 @@ ignore:
 
 coverage:
   status:
-    project:
+    patch: off
       default:
         target: 80%
-        threshold: 5%
-        base: auto
         if_ci_failed: ignore
