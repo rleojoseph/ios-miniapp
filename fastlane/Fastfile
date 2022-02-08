@@ -51,6 +51,22 @@ platform :ios do
       workspace: "MiniApp.xcworkspace",
       output_directory: "fastlane/code_coverage",
       cobertura_xml: true,
+      ignore:
+        - "Pods"
+        - "Tests"
+        - "Example"
+        - "Carthage"
+        - "MiniAppCarthage"
+        - "Sources/Classes/ui"
+        - "Sources/Classes/core/Display/MiniAppExternalWebViewController.swift"
+        - "Sources/Classes/core/Display/MiniAppNavigationConfig.swift"
+        - "Sources/Classes/core/Extensions/RealMiniAppView+WKUIDelegate.swift"
+        - "Sources/Classes/core/Extensions/Storyboard.swift"
+        - "Sources/Classes/core/Extensions/UIApplication.swift"
+        - "Sources/Classes/core/Extensions/UIViewController+MiniApp.swift"
+        - "Sources/Classes/core/Extensions/UIWindow+MiniApp.swift"
+        - "Sources/Classes/admob/AdMobDisplayer.swift"
+        - "Sources/Classes/core/Display/ViewControllers/Custom\ Permissions/CustomPermissionsRequestViewController.swift"
     )    
   end
 
