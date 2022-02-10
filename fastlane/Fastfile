@@ -32,6 +32,7 @@ platform :ios do
 # Uncomment this to disable Unit tests on Bitrise
 #     if !is_ci
        tests
+       slather_report
 #     end
 
   end
